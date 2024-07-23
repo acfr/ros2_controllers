@@ -1,0 +1,182 @@
+swerve_controller:
+  reference_timeout:
+    {
+      type: double,
+      default_value: 1,
+      description: "Timeout for controller references after which they will be reset. This is especially useful for controllers that can cause unwanted and dangerous behaviour if reference is not reset, e.g., velocity controllers. If value is 0 the reference is reset after each run.",
+    }
+
+  steer_joints_names:
+    {
+      type: string_array,
+      description: "Names of rear wheel steer joints.",
+      read_only: true,
+      default_value: [],
+
+      validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
+    }
+
+  drive_joints_names:
+    {
+      type: string_array,
+      description: "Names of front wheel drive joints.",
+      read_only: true,
+      default_value: [],
+
+      validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
+    }
+
+  open_loop:
+    {
+      type: bool,
+      default_value: false,
+      description: "bool parameter decides if open oop or not (feedback).",
+      read_only: false,
+    }
+
+  velocity_rolling_window_size:
+    {
+      type: int,
+      default_value: 10,
+      description: "The number of velocity samples to average together to compute the odometry twist.linear.x and twist.angular.z velocities.",
+      read_only: false,
+    }
+
+  base_frame_id:
+    {
+      type: string,
+      default_value: "base_link",
+      description: "Base frame_id set to value of base_frame_id.",
+      read_only: false,
+    }
+
+  odom_frame_id:
+    {
+      type: string,
+      default_value: "odom",
+      description: "Odometry frame_id set to value of odom_frame_id.",
+      read_only: false,
+    }
+
+  enable_odom_tf:
+    {
+      type: bool,
+      default_value: true,
+      description: "Publishing to tf is enabled or disabled ?.",
+      read_only: false,
+    }
+
+  twist_covariance_diagonal:
+    {
+      type: double_array,
+      default_value: [0, 7, 14, 21, 28, 35],
+      description: "diagonal values of twist covariance matrix.",
+      read_only: false,
+    }
+
+  pose_covariance_diagonal:
+    {
+      type: double_array,
+      default_value: [0, 7, 14, 21, 28, 35],
+      description: "diagonal values of pose covariance matrix.",
+      read_only: false,
+    }
+
+  position_feedback:
+    {
+      type: bool,
+      default_value: false,
+      description:
+        "Choice of feedback type, if position_feedback is false then HW_IF_VELOCITY is taken as interface type, if
+        position_feedback is true then HW_IF_POSITION is taken as interface type",
+      read_only: false,
+    }
+
+  max_steering_limit:
+    {
+      type: double,
+      default_value: 0.87267,
+      description: "Max joint angle for the steering joint"
+    }
+  min_steering_limit:
+    {
+      type: double,
+      default_value: -0.87267,
+      description: "Min joint angle for the steering joint"
+    }
+  wheel_track:
+    {
+      type: double,
+      default_value: 0.0,
+      description: "Wheel track length. For details see: https://en.wikipedia.org/wiki/Wheelbase",
+      read_only: false,
+    }
+
+  wheelbase:
+    {
+      type: double,
+      default_value: 0.0,
+      description: "Distance between front and rear wheels. For details see: https://en.wikipedia.org/wiki/Wheelbase",
+      read_only: false,
+    }
+
+  wheel_radius:
+    {
+      type: double,
+      default_value: 0.0,
+      description: "Wheels radius.",
+      read_only: false,
+    }
+
+  drive_to_steer_offset:
+    {
+      type: double,
+      default_value: 0.0,
+      description: "Distance from steer joint to drive joint.",
+      read_only: false,
+    }
+
+  publish_limited_velocity:
+    {
+      type: bool,
+      default_value: false,
+      description: "Choice of whether to publish limited velocities as a message",
+      read_only: false,
+    }
+  linear:
+    x:
+      has_velocity_limits: { type: bool, default_value: false }
+      has_acceleration_limits: { type: bool, default_value: false }
+      has_jerk_limits: { type: bool, default_value: false }
+      max_velocity: { type: double, default_value: .NAN }
+      min_velocity: { type: double, default_value: .NAN }
+      max_acceleration: { type: double, default_value: .NAN }
+      min_acceleration: { type: double, default_value: .NAN }
+      max_jerk: { type: double, default_value: .NAN }
+      min_jerk: { type: double, default_value: .NAN }
+    y:
+      has_velocity_limits: { type: bool, default_value: false }
+      has_acceleration_limits: { type: bool, default_value: false }
+      has_jerk_limits: { type: bool, default_value: false }
+      max_velocity: { type: double, default_value: .NAN }
+      min_velocity: { type: double, default_value: .NAN }
+      max_acceleration: { type: double, default_value: .NAN }
+      min_acceleration: { type: double, default_value: .NAN }
+      max_jerk: { type: double, default_value: .NAN }
+      min_jerk: { type: double, default_value: .NAN }
+  angular:
+    z:
+      has_velocity_limits: { type: bool, default_value: false }
+      has_acceleration_limits: { type: bool, default_value: false }
+      has_jerk_limits: { type: bool, default_value: false }
+      max_velocity: { type: double, default_value: .NAN }
+      min_velocity: { type: double, default_value: .NAN }
+      max_acceleration: { type: double, default_value: .NAN }
+      min_acceleration: { type: double, default_value: .NAN }
+      max_jerk: { type: double, default_value: .NAN }
+      min_jerk: { type: double, default_value: .NAN }
+  cmd_vel_timeout: {
+    type: double,
+    default_value: 0.5, # seconds
+    description: "Timeout after which input command on ``cmd_vel`` topic is considered staled.",
+  }
