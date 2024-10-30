@@ -26,6 +26,14 @@ swerve_controller:
       validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
     }
 
+  use_stamped_vel:
+    {
+      type: bool,
+      default_value: false,
+      description: "bool parameter decides cmd_vel is stamped or not.",
+      read_only: false,
+    }
+
   open_loop:
     {
       type: bool,

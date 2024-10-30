@@ -47,10 +47,7 @@ using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
 using lifecycle_msgs::msg::State;
 
-SwerveController::SwerveController()
-: controller_interface::ChainableControllerInterface()
-{
-}
+SwerveController::SwerveController() : controller_interface::ChainableControllerInterface() {}
 
 controller_interface::CallbackReturn SwerveController::on_init()
 {
@@ -78,8 +75,7 @@ controller_interface::CallbackReturn SwerveController::set_interface_numbers(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn SwerveController::on_configure(
-  const rclcpp_lifecycle::State & previous_state)
+controller_interface::CallbackReturn SwerveController::on_configure(const rclcpp_lifecycle::State &)
 {
   auto logger = get_node()->get_logger();
 
@@ -153,9 +149,18 @@ controller_interface::CallbackReturn SwerveController::on_configure(
   previous_commands_.emplace(empty_twist);
   previous_commands_.emplace(empty_twist);
 
-  ref_subscriber_twist_ = get_node()->create_subscription<ControllerTwistReferenceMsg>(
-    "~/reference", subscribers_qos,
-    std::bind(&SwerveController::reference_callback, this, std::placeholders::_1));
+  if (params_.use_stamped_vel)
+  {
+    ref_subscriber_twist_ = get_node()->create_subscription<ControllerTwistReferenceMsg>(
+      "~/reference", subscribers_qos,
+      std::bind(&SwerveController::reference_callback, this, std::placeholders::_1));
+  }
+  else
+  {
+    ref_subscriber_unstamped_ = get_node()->create_subscription<geometry_msgs::msg::Twist>(
+      "~/reference_unstamped", subscribers_qos,
+      std::bind(&SwerveController::reference_callback_unstamped, this, std::placeholders::_1));
+  }
 
   std::shared_ptr<ControllerTwistReferenceMsg> msg =
     std::make_shared<ControllerTwistReferenceMsg>();
@@ -313,8 +318,7 @@ bool SwerveController::update_odometry(const rclcpp::Duration & period)
   return true;
 }
 
-void SwerveController::reference_callback(
-  const std::shared_ptr<ControllerTwistReferenceMsg> msg)
+void SwerveController::reference_callback(const std::shared_ptr<ControllerTwistReferenceMsg> msg)
 {
   // if no timestamp provided use current time for command timestamp
   if (msg->header.stamp.sec == 0 && msg->header.stamp.nanosec == 0u)
@@ -341,8 +345,44 @@ void SwerveController::reference_callback(
   }
 }
 
-controller_interface::InterfaceConfiguration
-SwerveController::command_interface_configuration() const
+void SwerveController::reference_callback_unstamped(
+  const std::shared_ptr<geometry_msgs::msg::Twist> msg)
+{
+  RCLCPP_WARN(
+    get_node()->get_logger(),
+    "Use of Twist message without stamped is deprecated and it will be removed in ROS 2 J-Turtle "
+    "version. Use '~/reference' topic with 'geometry_msgs::msg::TwistStamped' message type in the "
+    "future.");
+  auto twist_stamped = *(input_ref_.readFromNonRT());
+  twist_stamped->header.stamp = get_node()->now();
+  // if no timestamp provided use current time for command timestamp
+  if (twist_stamped->header.stamp.sec == 0 && twist_stamped->header.stamp.nanosec == 0u)
+  {
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "Timestamp in header is missing, using current time as command timestamp.");
+    twist_stamped->header.stamp = get_node()->now();
+  }
+
+  const auto age_of_last_command = get_node()->now() - twist_stamped->header.stamp;
+
+  if (ref_timeout_ == rclcpp::Duration::from_seconds(0) || age_of_last_command <= ref_timeout_)
+  {
+    twist_stamped->twist = *msg;
+  }
+  else
+  {
+    RCLCPP_ERROR(
+      get_node()->get_logger(),
+      "Received message has timestamp %.10f older for %.10f which is more then allowed timeout "
+      "(%.4f).",
+      rclcpp::Time(twist_stamped->header.stamp).seconds(), age_of_last_command.seconds(),
+      ref_timeout_.seconds());
+  }
+}
+
+controller_interface::InterfaceConfiguration SwerveController::command_interface_configuration()
+  const
 {
   controller_interface::InterfaceConfiguration command_interfaces_config;
   command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -365,8 +405,7 @@ SwerveController::command_interface_configuration() const
   return command_interfaces_config;
 }
 
-controller_interface::InterfaceConfiguration SwerveController::state_interface_configuration()
-  const
+controller_interface::InterfaceConfiguration SwerveController::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration state_interfaces_config;
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -389,8 +428,7 @@ controller_interface::InterfaceConfiguration SwerveController::state_interface_c
   return state_interfaces_config;
 }
 
-std::vector<hardware_interface::CommandInterface>
-SwerveController::on_export_reference_interfaces()
+std::vector<hardware_interface::CommandInterface> SwerveController::on_export_reference_interfaces()
 {
   reference_interfaces_.resize(nr_ref_itfs_, std::numeric_limits<double>::quiet_NaN());
 
@@ -418,8 +456,7 @@ bool SwerveController::on_set_chained_mode(bool chained_mode)
   return true || chained_mode;
 }
 
-controller_interface::CallbackReturn SwerveController::on_activate(
-  const rclcpp_lifecycle::State & previous_state)
+controller_interface::CallbackReturn SwerveController::on_activate(const rclcpp_lifecycle::State &)
 {
   // Set default value in command
   reset_controller_reference_msg(*(input_ref_.readFromRT()), get_node());
@@ -428,7 +465,7 @@ controller_interface::CallbackReturn SwerveController::on_activate(
 }
 
 controller_interface::CallbackReturn SwerveController::on_deactivate(
-  const rclcpp_lifecycle::State & previous_state)
+  const rclcpp_lifecycle::State &)
 {
   for (size_t i = 0; i < nr_cmd_itfs_; ++i)
   {
@@ -438,8 +475,7 @@ controller_interface::CallbackReturn SwerveController::on_deactivate(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn SwerveController::on_cleanup(
-  const rclcpp_lifecycle::State & previous_state)
+controller_interface::CallbackReturn SwerveController::on_cleanup(const rclcpp_lifecycle::State &)
 {
   if (!reset())
   {
@@ -449,8 +485,7 @@ controller_interface::CallbackReturn SwerveController::on_cleanup(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn SwerveController::on_error(
-  const rclcpp_lifecycle::State & previous_state)
+controller_interface::CallbackReturn SwerveController::on_error(const rclcpp_lifecycle::State &)
 {
   if (!reset())
   {
@@ -459,8 +494,7 @@ controller_interface::CallbackReturn SwerveController::on_error(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn SwerveController::on_shutdown(
-  const rclcpp_lifecycle::State & previous_state)
+controller_interface::CallbackReturn SwerveController::on_shutdown(const rclcpp_lifecycle::State &)
 {
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -1118,5 +1152,4 @@ double SwerveController::difference_between_angles(float a, float b)
 #include "class_loader/register_macro.hpp"
 
 CLASS_LOADER_REGISTER_CLASS(
-  swerve_controller::SwerveController,
-  controller_interface::ChainableControllerInterface)
+  swerve_controller::SwerveController, controller_interface::ChainableControllerInterface)
