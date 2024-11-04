@@ -59,6 +59,23 @@ ament_target_dependencies(swerve_controller PUBLIC ${THIS_PACKAGE_INCLUDE_DEPEND
 target_compile_definitions(swerve_controller PRIVATE "STEERING_CONTROLLERS_BUILDING_DLL")
 pluginlib_export_plugin_description_file(controller_interface swerve_controller.xml)
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gmock REQUIRED)
+  find_package(controller_manager REQUIRED)
+  find_package(ros2_control_test_assets REQUIRED)
+
+  add_rostest_with_parameters_gmock(
+    test_swerve_controller test/test_swerve_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/swerve_controller_params.yaml)
+  target_include_directories(test_swerve_controller PRIVATE include)
+  target_link_libraries(test_swerve_controller swerve_controller)
+  ament_target_dependencies(
+    test_swerve_controller
+    controller_interface
+    hardware_interface
+  )
+endif()
+
 install(
   DIRECTORY include/
   DESTINATION include/swerve_controller

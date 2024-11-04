@@ -282,7 +282,6 @@ controller_interface::CallbackReturn SwerveController::configure_odometry()
   odometry_.set_wheel_params(
     wheel_params_.radius, wheel_params_.wheelbase, wheel_params_.wheel_track,
     wheel_params_.drive_to_steer_offset);
-  odometry_.init(get_node()->now());
 
   set_interface_numbers(NR_STATE_ITFS, NR_CMD_ITFS, NR_REF_ITFS);
 

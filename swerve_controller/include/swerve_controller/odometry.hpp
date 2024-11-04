@@ -47,12 +47,6 @@ namespace swerve_controller
     explicit Odometry();
 
     /**
-     * \brief Initialize the odometry
-     * \param time Current time
-     */
-    void init(const rclcpp::Time &time);
-
-    /**
      * \brief Updates the odometry class with latest wheels position
      * \param drive_joints_values  Drive joint positions vector contains values in [rad]
      * \param steer_joints_values Steer joint position vector contains values in [rad]

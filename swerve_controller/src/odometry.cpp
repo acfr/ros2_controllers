@@ -33,10 +33,6 @@ namespace swerve_controller
   {
   }
 
-  void Odometry::init(const rclcpp::Time &time)
-  {
-  }
-
   bool Odometry::update_odometry(const double &fl_speed, const double &fr_speed, const double &rr_speed,
                                  const double &rl_speed, const double &fl_steering, const double &fr_steering,
                                  const double &rr_steering, const double &rl_steering, const double dt)
