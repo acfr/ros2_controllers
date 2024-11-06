@@ -6,7 +6,7 @@
   <version>0.0.1</version>
   <description>A ROS2 implementation of swerve drive controller. Based on the ROS2 steering
     controller library and Gabriel Urbain's ROS1 implementation and some inspiration from Patrick van der Velde's zinger_swerve_controller </description>
-  <maintainer email="j.justin@acfr.usyd.edu.au">Jerome Justin</maintainer>
+  <maintainer email="jclinton830@gmail.com">Jerome Justin</maintainer>
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
