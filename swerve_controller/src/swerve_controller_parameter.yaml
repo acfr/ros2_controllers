@@ -9,7 +9,7 @@ swerve_controller:
   steer_joints_names:
     {
       type: string_array,
-      description: "Names of rear wheel steer joints.",
+      description: "Names of wheel steer joints.",
       read_only: true,
       default_value: [],
 
@@ -19,7 +19,27 @@ swerve_controller:
   drive_joints_names:
     {
       type: string_array,
-      description: "Names of front wheel drive joints.",
+      description: "Names of wheel drive joints.",
+      read_only: true,
+      default_value: [],
+
+      validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
+    }
+
+  steer_joints_state_names:
+    {
+      type: string_array,
+      description: "Names of states of wheel steer joints.",
+      read_only: true,
+      default_value: [],
+
+      validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
+    }
+
+  drive_joints_state_names:
+    {
+      type: string_array,
+      description: "Names of states of wheel drive joints.",
       read_only: true,
       default_value: [],
 
@@ -104,13 +124,13 @@ swerve_controller:
     {
       type: double,
       default_value: 0.87267,
-      description: "Max joint angle for the steering joint"
+      description: "Max joint angle for the steering joint",
     }
   min_steering_limit:
     {
       type: double,
       default_value: -0.87267,
-      description: "Min joint angle for the steering joint"
+      description: "Min joint angle for the steering joint",
     }
   wheel_track:
     {
@@ -184,7 +204,7 @@ swerve_controller:
       max_jerk: { type: double, default_value: .NAN }
       min_jerk: { type: double, default_value: .NAN }
   cmd_vel_timeout: {
-    type: double,
-    default_value: 0.5, # seconds
-    description: "Timeout after which input command on ``cmd_vel`` topic is considered staled.",
-  }
+      type: double,
+      default_value: 0.5, # seconds
+      description: "Timeout after which input command on ``cmd_vel`` topic is considered staled.",
+    }

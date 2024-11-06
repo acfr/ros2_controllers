@@ -165,6 +165,9 @@ protected:
 
   std::vector<std::string> steer_joints_names_;
   std::vector<std::string> drive_joints_names_;
+  
+  std::vector<std::string> drive_joints_state_names_;
+  std::vector<std::string> steer_joints_state_names_;
 
   // Parameters from ROS for diff_drive_controller
   std::shared_ptr<swerve_controller::ParamListener> param_listener_;

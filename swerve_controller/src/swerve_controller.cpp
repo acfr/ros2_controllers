@@ -106,6 +106,24 @@ controller_interface::CallbackReturn SwerveController::on_configure(const rclcpp
     RCLCPP_INFO(logger, "Drive Joints are not specified");
   }
 
+  if (!params_.drive_joints_state_names.empty())
+  {
+    drive_joints_state_names_ = params_.drive_joints_state_names;
+  }
+  else
+  {
+    RCLCPP_INFO(logger, "Drive Joints are not specified");
+  }
+
+  if (!params_.steer_joints_state_names.empty())
+  {
+    steer_joints_state_names_ = params_.steer_joints_state_names;
+  }
+  else
+  {
+    RCLCPP_INFO(logger, "Steer Joints are not specified");
+  }
+
   cmd_vel_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_vel_timeout * 1000.0)};
   publish_limited_velocity_ = params_.publish_limited_velocity;
 
@@ -415,13 +433,14 @@ controller_interface::InterfaceConfiguration SwerveController::state_interface_c
 
   for (size_t i = 0; i < drive_joints_names_.size(); i++)
   {
-    state_interfaces_config.names.push_back(drive_joints_names_[i] + "/" + drive_joints_feedback);
+    state_interfaces_config.names.push_back(
+      drive_joints_state_names_[i] + "/" + drive_joints_feedback);
   }
 
   for (size_t i = 0; i < steer_joints_names_.size(); i++)
   {
     state_interfaces_config.names.push_back(
-      steer_joints_names_[i] + "/" + hardware_interface::HW_IF_POSITION);
+      steer_joints_state_names_[i] + "/" + hardware_interface::HW_IF_POSITION);
   }
 
   return state_interfaces_config;
@@ -777,9 +796,8 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 
     for (std::size_t i = 0; i < result.size(); i++)
     {
-      drive_commands.push_back(
-        result[i].drive_velocity /
-        wheel_params_.radius);  // converting from m/s to rotational velocity rads/sec
+      // converting from m/s to rotational velocity rads/sec
+      drive_commands.push_back(result[i].drive_velocity / wheel_params_.radius);
       steer_commands.push_back(result[i].steering_angle);
     }
 
