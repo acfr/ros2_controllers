@@ -64,15 +64,29 @@ if(BUILD_TESTING)
   find_package(controller_manager REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)
 
-  add_rostest_with_parameters_gmock(
-    test_swerve_controller test/test_swerve_controller.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/swerve_controller_params.yaml)
-  target_include_directories(test_swerve_controller PRIVATE include)
-  target_link_libraries(test_swerve_controller swerve_controller)
-  ament_target_dependencies(
-    test_swerve_controller
-    controller_interface
+  ament_add_gmock(test_swerve_controller
+    test/test_swerve_controller.cpp)
+  target_link_libraries(test_swerve_controller
+    swerve_controller
+  )
+  ament_target_dependencies(test_swerve_controller
+    geometry_msgs
     hardware_interface
+    nav_msgs
+    rclcpp
+    rclcpp_lifecycle
+    realtime_tools
+    tf2
+    tf2_msgs
+  )
+
+  add_rostest_with_parameters_gmock(test_load_swerve_controller
+    test/test_load_swerve_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/config/test_swerve_controller.yaml
+  )
+  ament_target_dependencies(test_load_swerve_controller
+    controller_manager
+    ros2_control_test_assets
   )
 endif()
 

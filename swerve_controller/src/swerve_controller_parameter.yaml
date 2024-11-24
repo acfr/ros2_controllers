@@ -11,8 +11,6 @@ swerve_controller:
       type: string_array,
       description: "Names of wheel steer joints.",
       read_only: true,
-      default_value: [],
-
       validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
     }
 
@@ -21,8 +19,6 @@ swerve_controller:
       type: string_array,
       description: "Names of wheel drive joints.",
       read_only: true,
-      default_value: [],
-
       validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
     }
 
@@ -31,8 +27,6 @@ swerve_controller:
       type: string_array,
       description: "Names of states of wheel steer joints.",
       read_only: true,
-      default_value: [],
-
       validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
     }
 
@@ -41,8 +35,6 @@ swerve_controller:
       type: string_array,
       description: "Names of states of wheel drive joints.",
       read_only: true,
-      default_value: [],
-
       validation: { size_lt<>: [5], unique<>: null, not_empty<>: null },
     }
 
