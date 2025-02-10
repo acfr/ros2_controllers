@@ -167,8 +167,8 @@ controller_interface::return_type DiffDriveController::update(
       left_feedback_mean += left_feedback;
       right_feedback_mean += right_feedback;
     }
-    left_feedback_mean /= params_.wheels_per_side;
-    right_feedback_mean /= params_.wheels_per_side;
+    left_feedback_mean /= static_cast<double>(params_.wheels_per_side);
+    right_feedback_mean /= static_cast<double>(params_.wheels_per_side);
 
     if (params_.position_feedback)
     {
@@ -298,7 +298,7 @@ controller_interface::CallbackReturn DiffDriveController::on_configure(
   const double right_wheel_radius = params_.right_wheel_radius_multiplier * params_.wheel_radius;
 
   odometry_.setWheelParams(wheel_separation, left_wheel_radius, right_wheel_radius);
-  odometry_.setVelocityRollingWindowSize(params_.velocity_rolling_window_size);
+  odometry_.setVelocityRollingWindowSize(static_cast<size_t>(params_.velocity_rolling_window_size));
 
   cmd_vel_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_vel_timeout * 1000.0)};
   publish_limited_velocity_ = params_.publish_limited_velocity;
@@ -405,13 +405,14 @@ controller_interface::CallbackReturn DiffDriveController::on_configure(
       tf_prefix = std::string(get_node()->get_namespace());
     }
 
-    if (tf_prefix == "/")
-    {
-      tf_prefix = "";
-    }
-    else
+    // Make sure prefix does not start with '/' and always ends with '/'
+    if (tf_prefix.back() != '/')
     {
       tf_prefix = tf_prefix + "/";
+    }
+    if (tf_prefix.front() == '/')
+    {
+      tf_prefix.erase(0, 1);
     }
   }
 
@@ -539,12 +540,6 @@ bool DiffDriveController::reset()
   received_velocity_msg_ptr_.set(nullptr);
   is_halted = false;
   return true;
-}
-
-controller_interface::CallbackReturn DiffDriveController::on_shutdown(
-  const rclcpp_lifecycle::State &)
-{
-  return controller_interface::CallbackReturn::SUCCESS;
 }
 
 void DiffDriveController::halt()

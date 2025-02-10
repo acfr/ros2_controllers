@@ -2,6 +2,40 @@
 Changelog for package tricycle_steering_controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.41.0 (2025-01-13)
+-------------------
+* Fix typos in steering_controllers_lib (backport `#1464 <https://github.com/ros-controls/ros2_controllers/issues/1464>`_) (`#1466 <https://github.com/ros-controls/ros2_controllers/issues/1466>`_)
+* Contributors: mergify[bot]
+
+2.40.0 (2025-01-01)
+-------------------
+
+2.39.0 (2024-12-03)
+-------------------
+* Update maintainers and add url tags (`#1363 <https://github.com/ros-controls/ros2_controllers/issues/1363>`_) (`#1364 <https://github.com/ros-controls/ros2_controllers/issues/1364>`_)
+* Contributors: mergify[bot]
+
+2.38.0 (2024-11-09)
+-------------------
+* Added -Wconversion flag and fix warnings (`#667 <https://github.com/ros-controls/ros2_controllers/issues/667>`_) (`#1321 <https://github.com/ros-controls/ros2_controllers/issues/1321>`_)
+* Contributors: mergify[bot]
+
+2.37.3 (2024-09-11)
+-------------------
+
+2.37.2 (2024-08-22)
+-------------------
+
+2.37.1 (2024-08-14)
+-------------------
+
+2.37.0 (2024-07-24)
+-------------------
+* Fix WaitSet issue in tests  (backport `#1206 <https://github.com/ros-controls/ros2_controllers/issues/1206>`_) (`#1211 <https://github.com/ros-controls/ros2_controllers/issues/1211>`_)
+* 🚀 Add PID controller 🎉 (backport `#434 <https://github.com/ros-controls/ros2_controllers/issues/434>`_, `#975 <https://github.com/ros-controls/ros2_controllers/issues/975>`_, `#899 <https://github.com/ros-controls/ros2_controllers/issues/899>`_, `#1084 <https://github.com/ros-controls/ros2_controllers/issues/1084>`_, `#951 <https://github.com/ros-controls/ros2_controllers/issues/951>`_) (`#1162 <https://github.com/ros-controls/ros2_controllers/issues/1162>`_)
+* Fix steering controllers library kinematics (`#1150 <https://github.com/ros-controls/ros2_controllers/issues/1150>`_) (`#1194 <https://github.com/ros-controls/ros2_controllers/issues/1194>`_)
+* Contributors: mergify[bot]
+
 2.36.0 (2024-07-09)
 -------------------
 * [Steering controllers library] Reference interfaces are body twist (`#1168 <https://github.com/ros-controls/ros2_controllers/issues/1168>`_) (`#1173 <https://github.com/ros-controls/ros2_controllers/issues/1173>`_)

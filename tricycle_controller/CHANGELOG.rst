@@ -2,6 +2,42 @@
 Changelog for package tricycle_controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.41.0 (2025-01-13)
+-------------------
+* Remove empty on_shutdown() callbacks (backport `#1477 <https://github.com/ros-controls/ros2_controllers/issues/1477>`_) (`#1482 <https://github.com/ros-controls/ros2_controllers/issues/1482>`_)
+* Contributors: mergify[bot]
+
+2.40.0 (2025-01-01)
+-------------------
+* Use the .hpp headers from `realtime_tools` package (backport `#1406 <https://github.com/ros-controls/ros2_controllers/issues/1406>`_) (`#1427 <https://github.com/ros-controls/ros2_controllers/issues/1427>`_)
+* [CI] Add clang job and setup concurrency (backport `#1407 <https://github.com/ros-controls/ros2_controllers/issues/1407>`_) (`#1418 <https://github.com/ros-controls/ros2_controllers/issues/1418>`_)
+* Contributors: mergify[bot]
+
+2.39.0 (2024-12-03)
+-------------------
+* TractionLimiter: Fix wrong input checks (`#1341 <https://github.com/ros-controls/ros2_controllers/issues/1341>`_) (`#1366 <https://github.com/ros-controls/ros2_controllers/issues/1366>`_)
+* Update maintainers and add url tags (`#1363 <https://github.com/ros-controls/ros2_controllers/issues/1363>`_) (`#1364 <https://github.com/ros-controls/ros2_controllers/issues/1364>`_)
+* Contributors: mergify[bot]
+
+2.38.0 (2024-11-09)
+-------------------
+* Added -Wconversion flag and fix warnings (`#667 <https://github.com/ros-controls/ros2_controllers/issues/667>`_) (`#1321 <https://github.com/ros-controls/ros2_controllers/issues/1321>`_)
+* Contributors: mergify[bot]
+
+2.37.3 (2024-09-11)
+-------------------
+
+2.37.2 (2024-08-22)
+-------------------
+
+2.37.1 (2024-08-14)
+-------------------
+
+2.37.0 (2024-07-24)
+-------------------
+* Fix WaitSet issue in tests  (backport `#1206 <https://github.com/ros-controls/ros2_controllers/issues/1206>`_) (`#1211 <https://github.com/ros-controls/ros2_controllers/issues/1211>`_)
+* Contributors: mergify[bot]
+
 2.36.0 (2024-07-09)
 -------------------
 * Add mobile robot kinematics 101 and improve steering library docs (`#954 <https://github.com/ros-controls/ros2_controllers/issues/954>`_) (`#1160 <https://github.com/ros-controls/ros2_controllers/issues/1160>`_)

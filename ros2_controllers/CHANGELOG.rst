@@ -2,6 +2,37 @@
 Changelog for package ros2_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.41.0 (2025-01-13)
+-------------------
+
+2.40.0 (2025-01-01)
+-------------------
+* Add missing plugins to ros2_controllers dependencies (`#1413 <https://github.com/ros-controls/ros2_controllers/issues/1413>`_) (`#1415 <https://github.com/ros-controls/ros2_controllers/issues/1415>`_)
+* Gpio command controller (backport `#1251 <https://github.com/ros-controls/ros2_controllers/issues/1251>`_) (`#1372 <https://github.com/ros-controls/ros2_controllers/issues/1372>`_)
+* Contributors: Sai Kishor Kothakota, mergify[bot]
+
+2.39.0 (2024-12-03)
+-------------------
+* Update maintainers and add url tags (`#1363 <https://github.com/ros-controls/ros2_controllers/issues/1363>`_) (`#1364 <https://github.com/ros-controls/ros2_controllers/issues/1364>`_)
+* Contributors: mergify[bot]
+
+2.38.0 (2024-11-09)
+-------------------
+
+2.37.3 (2024-09-11)
+-------------------
+
+2.37.2 (2024-08-22)
+-------------------
+
+2.37.1 (2024-08-14)
+-------------------
+
+2.37.0 (2024-07-24)
+-------------------
+* 🚀 Add PID controller 🎉 (backport `#434 <https://github.com/ros-controls/ros2_controllers/issues/434>`_, `#975 <https://github.com/ros-controls/ros2_controllers/issues/975>`_, `#899 <https://github.com/ros-controls/ros2_controllers/issues/899>`_, `#1084 <https://github.com/ros-controls/ros2_controllers/issues/1084>`_, `#951 <https://github.com/ros-controls/ros2_controllers/issues/951>`_) (`#1162 <https://github.com/ros-controls/ros2_controllers/issues/1162>`_)
+* Contributors: mergify[bot]
+
 2.36.0 (2024-07-09)
 -------------------
 * Add custom rosdoc2 config for ros2_controllers metapackage (`#1100 <https://github.com/ros-controls/ros2_controllers/issues/1100>`_) (`#1142 <https://github.com/ros-controls/ros2_controllers/issues/1142>`_)
