@@ -62,7 +62,7 @@
 #include "swerve_controller/odometry.hpp"
 #include "swerve_controller/speed_limiter.hpp"
 #include "swerve_controller/visibility_control.h"
-#include "swerve_controller_parameters.hpp"
+#include "swerve_controller/swerve_controller_parameters.hpp"
 
 namespace swerve_controller
 {
