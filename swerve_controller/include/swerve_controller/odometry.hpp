@@ -32,8 +32,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include "realtime_tools/realtime_buffer.h"
-#include "realtime_tools/realtime_publisher.h"
+#include "realtime_tools/realtime_buffer.hpp"
+#include "realtime_tools/realtime_publisher.hpp"
 
 namespace swerve_controller
 {
