@@ -942,9 +942,19 @@ bool SwerveController::reset()
 
 void SwerveController::brake()
 {
+  // Drive joins come to complete stop
   for (size_t i = 0; i < params_.drive_joints_names.size(); i++)
   {
     command_interfaces_[i].set_value(0);
+  }
+
+  // The steer joints hold the current position
+  int no_of_steer_joints = params_.steer_joints_names.size();
+
+  for (size_t i = 0; i < no_of_steer_joints; i++)
+  {
+    double current_position = state_interfaces_[i + no_of_steer_joints].get_value();
+    command_interfaces_[i + no_of_steer_joints].set_value(current_position);
   }
 }
 
