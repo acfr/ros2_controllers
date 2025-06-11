@@ -3,9 +3,9 @@
   href="http://download.ros.org/schema/package_format3.xsd"
   schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>parallel_gripper_controller</name>
-  <version>5.0.2</version>
-  <description>The parallel_gripper_controller package</description>
+  <name>gripper_controllers</name>
+  <version>2.41.0</version>
+  <description>The gripper_controllers package</description>
 
   <maintainer email="bence.magyar.robotics@gmail.com">Bence Magyar</maintainer>
   <maintainer email="denis@stoglrobotics.de">Denis Štogl</maintainer>
@@ -19,11 +19,9 @@
   <url type="repository">https://github.com/ros-controls/ros2_controllers/</url>
 
   <author email="robot.moveit@gmail.com">Sachin Chitta</author>
-  <author email="paulgesel@gmail.com">Paul Gesel</author>
+  <author email="cafer.abdi@gmail.com">Jafar Abdi</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <build_depend>ros2_control_cmake</build_depend>
 
   <depend>backward_ros</depend>
   <depend>control_msgs</depend>
@@ -38,6 +36,7 @@
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>controller_manager</test_depend>
+  <test_depend>hardware_interface_testing</test_depend>
   <test_depend>ros2_control_test_assets</test_depend>
 
   <export>

@@ -13,7 +13,6 @@ on:
       - '**/package.xml'
       - '**/CMakeLists.txt'
       - 'ros2_controllers-not-released.rolling.repos'
-      - 'ros2_controllers-not-released.kilted.repos'
       - '**.xml'
 
 concurrency:
@@ -24,9 +23,5 @@ concurrency:
 jobs:
   abi_check:
     uses: ros-controls/ros2_control_ci/.github/workflows/reusable-abi-check.yml@master
-    strategy:
-      fail-fast: false
-      matrix:
-        ROS_DISTRO: [kilted, rolling]
     with:
-      ros_distro: ${{ matrix.ROS_DISTRO }}
+      ros_distro: rolling
