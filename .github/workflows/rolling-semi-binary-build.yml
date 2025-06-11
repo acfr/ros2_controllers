@@ -18,7 +18,6 @@ on:
       - '**/package.xml'
       - '**/CMakeLists.txt'
       - 'ros2_controllers.rolling.repos'
-      - 'ros2_controllers.kilted.repos'
       - '**.xml'
   push:
     branches:
@@ -33,11 +32,10 @@ on:
       - '**/package.xml'
       - '**/CMakeLists.txt'
       - 'ros2_controllers.rolling.repos'
-      - 'ros2_controllers.kilted.repos'
       - '**.xml'
   schedule:
     # Run every morning to detect flakiness and broken dependencies
-    - cron: '33 1 * * MON-FRI'
+    - cron: '33 1 * * *'
 
 concurrency:
   # cancel previous runs of the same workflow, except for pushes on master branch
@@ -47,25 +45,17 @@ concurrency:
 jobs:
   semi_binary:
     uses: ros-controls/ros2_control_ci/.github/workflows/reusable-industrial-ci-with-cache.yml@master
-    strategy:
-      fail-fast: false
-      matrix:
-        ROS_DISTRO: [kilted, rolling]
     with:
-      ros_distro: ${{ matrix.ROS_DISTRO }}
+      ros_distro: rolling
       ros_repo: testing
-      upstream_workspace: ros2_controllers.${{ matrix.ROS_DISTRO }}.repos
+      upstream_workspace: ros2_controllers.rolling.repos
       ref_for_scheduled_build: master
   semi_binary_clang:
     uses: ros-controls/ros2_control_ci/.github/workflows/reusable-industrial-ci-with-cache.yml@master
-    strategy:
-      fail-fast: false
-      matrix:
-        ROS_DISTRO: [kilted, rolling]
     with:
-      ros_distro: ${{ matrix.ROS_DISTRO }}
+      ros_distro: rolling
       ros_repo: testing
-      upstream_workspace: ros2_controllers.${{ matrix.ROS_DISTRO }}.repos
+      upstream_workspace: ros2_controllers.rolling.repos
       ref_for_scheduled_build: master
       additional_debs: clang
       c_compiler: clang

@@ -1,0 +1,8 @@
+<library path="swerve_controller">
+  <class name="swerve_controller/SwerveController"
+         type="swerve_controller::SwerveController" base_class_type="controller_interface::ChainableControllerInterface">
+  <description>
+    4 Wheel independant drive and steer controller
+  </description>
+  </class>
+</library>

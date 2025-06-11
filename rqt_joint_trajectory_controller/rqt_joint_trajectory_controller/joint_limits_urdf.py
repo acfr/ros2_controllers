@@ -46,6 +46,7 @@ def subscribe_to_robot_description(node, key="robot_description"):
 
 
 def get_joint_limits(node, joints_names, use_smallest_joint_limits=True):
+    global description
     use_small = use_smallest_joint_limits
     use_mimic = True
 
