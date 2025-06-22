@@ -459,17 +459,20 @@ std::vector<hardware_interface::CommandInterface> SwerveController::on_export_re
   std::vector<hardware_interface::CommandInterface> reference_interfaces;
   reference_interfaces.reserve(nr_ref_itfs_);
 
-  reference_interfaces.push_back(hardware_interface::CommandInterface(
-    get_node()->get_name(), std::string("linear_x/") + hardware_interface::HW_IF_VELOCITY,
-    &reference_interfaces_[0]));
+  reference_interfaces.push_back(
+    hardware_interface::CommandInterface(
+      get_node()->get_name(), std::string("linear_x/") + hardware_interface::HW_IF_VELOCITY,
+      &reference_interfaces_[0]));
 
-  reference_interfaces.push_back(hardware_interface::CommandInterface(
-    get_node()->get_name(), std::string("linear_y/") + hardware_interface::HW_IF_VELOCITY,
-    &reference_interfaces_[1]));
+  reference_interfaces.push_back(
+    hardware_interface::CommandInterface(
+      get_node()->get_name(), std::string("linear_y/") + hardware_interface::HW_IF_VELOCITY,
+      &reference_interfaces_[1]));
 
-  reference_interfaces.push_back(hardware_interface::CommandInterface(
-    get_node()->get_name(), std::string("angular/") + hardware_interface::HW_IF_POSITION,
-    &reference_interfaces_[2]));
+  reference_interfaces.push_back(
+    hardware_interface::CommandInterface(
+      get_node()->get_name(), std::string("angular/") + hardware_interface::HW_IF_POSITION,
+      &reference_interfaces_[2]));
 
   return reference_interfaces;
 }
@@ -493,7 +496,13 @@ controller_interface::CallbackReturn SwerveController::on_deactivate(
 {
   for (size_t i = 0; i < nr_cmd_itfs_; ++i)
   {
-    bool state = command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN());
+    if(!command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN()))
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "Failed to set command interface %s to NaN on deactivation.",
+        command_interfaces_[i].get_name().c_str());
+    }
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -523,7 +532,8 @@ controller_interface::CallbackReturn SwerveController::on_shutdown(const rclcpp_
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type SwerveController::update_reference_from_subscribers(const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
+controller_interface::return_type SwerveController::update_reference_from_subscribers(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   return controller_interface::return_type::OK;
 }
@@ -653,150 +663,33 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 
     float normalising_factor = *max_element(scales.begin(), scales.end());
 
-    float forward_steering_angle = 0.0;
-    float reverse_steering_angle = 0.0;
-    float cos_angle = 0.0;
-    float sin_angle = 0.0;
-
     std::vector<DriveModuleDesiredValues> forward_states;
     std::vector<DriveModuleDesiredValues> reverse_states;
 
     for (std::size_t i = 0; i < drive_speeds.size(); i++)
     {
-      float a = drive_speeds[i];
-      float b = 0.0;
-      float abs_tol = 1e-9;
-      float rel_tol = 1e-9;
+      auto [forward_angle, reverse_angle] =
+        calculate_steering_angles(drive_linear_x[i], drive_linear_y[i], drive_speeds[i]);
 
-      if (is_close(a, b, abs_tol, rel_tol))
-      {
-        // If the other wheels are moving then we might be rotating around the current wheel, so
-        // then rotate with the same rotational velocity as the body, but negative
-
-        // If other wheels aren't moving then maybe we're at a stop
-
-        // In either case we just keep the position of the wheel where it was
-        forward_steering_angle = std::numeric_limits<double>::infinity();
-      }
-      else
-      {
-        // Calculate the position of the drive wheel.
-        //
-        // acos returns values between 0 and pi
-        cos_angle = std::acos(drive_linear_x[i] / drive_speeds[i]);
-
-        // asin returns values between -1/2 pi and 1/2 pi
-        sin_angle = std::asin(drive_linear_y[i] / drive_speeds[i]);
-
-        // The acos value decides if the wheel orientation is between 0 - 90 degrees or 90 - 180
-        // degrees, i.e. top and bottom, but doesn't distinguish between left and right the asin
-        // value decides if the wheel orientation is between 90 - 0 degrees or 360 - 270 degrees,
-        // i.e. left and right
-        if (cos_angle <= 0.5 * M_PI)
-        {
-          if (sin_angle < 0)
-          {
-            forward_steering_angle = sin_angle;  //+ 2 * M_PI;
-          }
-          else
-          {
-            forward_steering_angle = sin_angle;
-          }
-        }
-        else
-        {
-          // cos_angle is larger than 1 / 2 * pi.In that case if the
-          if (sin_angle < 0)
-          {  // In this case we want to mirror the current angle relative to Pi(or 180 degrees)
-            forward_steering_angle = difference_between_angles(cos_angle, M_PI) + M_PI;
-          }
-          else
-          {
-            forward_steering_angle = cos_angle;
-          }
-          forward_steering_angle = normalise_angle(forward_steering_angle);
-        }
-
-        if (!std::isinf(forward_steering_angle))
-        {
-          reverse_steering_angle = normalise_angle(forward_steering_angle + M_PI);
-        }
-        else
-          reverse_steering_angle = -1 * std::numeric_limits<double>::infinity();
-      }
-
-      DriveModuleDesiredValues forward_state;
-      forward_state.steering_angle = forward_steering_angle,
-      forward_state.drive_velocity = drive_speeds[i] * normalising_factor;
-
-      DriveModuleDesiredValues reverse_state;
-      reverse_state.steering_angle = reverse_steering_angle,
-      reverse_state.drive_velocity = -1.0 * drive_speeds[i] * normalising_factor;
+      DriveModuleDesiredValues forward_state{forward_angle, drive_speeds[i] * normalising_factor};
+      DriveModuleDesiredValues reverse_state{
+        reverse_angle, -1 * drive_speeds[i] * normalising_factor};
 
       forward_states.push_back(forward_state);
       reverse_states.push_back(reverse_state);
     }
 
     std::vector<DriveModuleDesiredValues> result;
-
     for (std::size_t i = 0; i < forward_states.size(); i++)
     {
-      double current_velocity = state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-      double current_steering = state_interfaces_[i + forward_states.size()].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-
-      double forward_state_rotation_diff =
-        difference_between_angles(current_steering, forward_states[i].steering_angle);
-      double reverse_state_rotation_diff =
-        difference_between_angles(current_steering, reverse_states[i].steering_angle);
-
-      double forward_state_velocity_diff = forward_states[i].drive_velocity - current_velocity;
-      double reverse_state_velocity_diff = reverse_states[i].drive_velocity - current_velocity;
-
-      double tolerance = 1e-7;
-
-      // Do the comparisons
-      if (std::abs(forward_state_rotation_diff) <= std::abs(reverse_state_rotation_diff))
-      {
-        if (std::abs(forward_state_velocity_diff) <= std::abs(reverse_state_velocity_diff))
-        {
-          result.push_back(forward_states[i]);
-        }
-        else
-        {
-          if (is_close(
-                std::abs(forward_state_rotation_diff), std::abs(reverse_state_rotation_diff),
-                tolerance, tolerance))
-          {
-            result.push_back(reverse_states[i]);
-          }
-          else
-          {
-            result.push_back(forward_states[i]);
-          }
-        }
-      }
-      else
-      {
-        if (std::abs(reverse_state_velocity_diff) <= std::abs(forward_state_velocity_diff))
-        {
-          result.push_back(reverse_states[i]);
-        }
-        else
-        {
-          if (is_close(
-                std::abs(forward_state_rotation_diff), std::abs(reverse_state_rotation_diff),
-                tolerance, tolerance))
-          {
-            result.push_back(forward_states[i]);
-          }
-          else
-          {
-            result.push_back(reverse_states[i]);
-          }
-        }
-      }
+      double current_velocity =
+        state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+      double current_steering =
+        state_interfaces_[i + forward_states.size()].get_optional().value_or(
+          std::numeric_limits<double>::quiet_NaN());
+      result.push_back(select_best_state(
+        forward_states[i], reverse_states[i], current_velocity, current_steering));
     }
-    // End of @pvandervelde's wheel sync logic
 
     check_steering_limits(result);
 
@@ -871,13 +764,15 @@ controller_interface::return_type SwerveController::update_and_write_commands(
           state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()));
       }
       controller_state_publisher_->msg_.wheel_steer_position.push_back(
-        state_interfaces_[number_of_drive_joints + i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()));
+        state_interfaces_[number_of_drive_joints + i].get_optional().value_or(
+          std::numeric_limits<double>::quiet_NaN()));
 
       controller_state_publisher_->msg_.wheel_drive_velocity_cmd.push_back(
         command_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()));
 
       controller_state_publisher_->msg_.wheel_steering_angle_cmd.push_back(
-        command_interfaces_[number_of_drive_joints + i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()));
+        command_interfaces_[number_of_drive_joints + i].get_optional().value_or(
+          std::numeric_limits<double>::quiet_NaN()));
     }
 
     controller_state_publisher_->unlockAndPublish();
@@ -925,6 +820,71 @@ void SwerveController::check_steering_limits(std::vector<DriveModuleDesiredValue
   }
 }
 
+std::pair<double, double> SwerveController::calculate_steering_angles(
+  double vx, double vy, double speed)
+{
+  if (is_close(speed, 0.0, 1e-9, 1e-9))
+  {
+    return {std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
+  }
+  double cos_angle = std::acos(vx / speed);
+  double sin_angle = std::asin(vy / speed);
+  double forward_angle;
+  if (cos_angle <= 0.5 * M_PI)
+  {
+    forward_angle = sin_angle;
+  }
+  else
+  {
+    forward_angle = (sin_angle < 0) ? difference_between_angles(cos_angle, M_PI) + M_PI : cos_angle;
+    forward_angle = normalise_angle(forward_angle);
+  }
+  double reverse_angle = !std::isinf(forward_angle) ? normalise_angle(forward_angle + M_PI)
+                                                    : -std::numeric_limits<double>::infinity();
+  return {forward_angle, reverse_angle};
+}
+
+const SwerveController::DriveModuleDesiredValues & SwerveController::select_best_state(
+  const DriveModuleDesiredValues & forward, const DriveModuleDesiredValues & reverse,
+  double current_velocity, double current_steering, double tolerance)
+{
+  double forward_rot_diff = difference_between_angles(current_steering, forward.steering_angle);
+  double reverse_rot_diff = difference_between_angles(current_steering, reverse.steering_angle);
+  double forward_vel_diff = forward.drive_velocity - current_velocity;
+  double reverse_vel_diff = reverse.drive_velocity - current_velocity;
+
+  if (std::abs(forward_rot_diff) <= std::abs(reverse_rot_diff))
+  {
+    if (std::abs(forward_vel_diff) <= std::abs(reverse_vel_diff))
+    {
+      return forward;
+    }
+    else if (is_close(std::abs(forward_rot_diff), std::abs(reverse_rot_diff), tolerance, tolerance))
+    {
+      return reverse;
+    }
+    else
+    {
+      return forward;
+    }
+  }
+  else
+  {
+    if (std::abs(reverse_vel_diff) <= std::abs(forward_vel_diff))
+    {
+      return reverse;
+    }
+    else if (is_close(std::abs(forward_rot_diff), std::abs(reverse_rot_diff), tolerance, tolerance))
+    {
+      return forward;
+    }
+    else
+    {
+      return reverse;
+    }
+  }
+}
+
 bool SwerveController::reset()
 {
   // reset all variables
@@ -945,7 +905,13 @@ void SwerveController::brake()
   // Drive joins come to complete stop
   for (size_t i = 0; i < params_.drive_joints_names.size(); i++)
   {
-    bool state = command_interfaces_[i].set_value(0.0);
+    if(!command_interfaces_[i].set_value(0.0))
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "Failed to set drive joint '%s' to 0.0 velocity, check if the joint is configured correctly.",
+        params_.drive_joints_names[i].c_str());
+    }
   }
 
   // The steer joints hold the current position
@@ -953,8 +919,15 @@ void SwerveController::brake()
 
   for (size_t i = 0; i < no_of_steer_joints; i++)
   {
-    double current_position = state_interfaces_[i + no_of_steer_joints].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-    bool state = command_interfaces_[i + no_of_steer_joints].set_value(current_position);
+    double current_position = state_interfaces_[i + no_of_steer_joints].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+    if(!command_interfaces_[i + no_of_steer_joints].set_value(current_position))
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(), 
+        "Failed to set steer joint '%s' to current position %.2f, check if the joint is configured ",
+        params_.steer_joints_names[i].c_str(), current_position);
+    }
   }
 }
 
@@ -966,8 +939,21 @@ void SwerveController::update_command_interfaces(
     // TODO check join limits before writing to them here - SANITY CHECK
 
     // then write
-    bool state = command_interfaces_[i].set_value(drive_values[i]);
-    state = command_interfaces_[i + steer_joints_names_.size()].set_value(steer_values[i]);
+    if(!command_interfaces_[i].set_value(drive_values[i]))
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "Failed to set drive joint '%s' to %.2f velocity, check if the joint is configured correctly.",
+        drive_joints_names_[i].c_str(), drive_values[i]);
+    }
+
+    if(!command_interfaces_[i + steer_joints_names_.size()].set_value(steer_values[i]))
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "Failed to set steer joint '%s' to %.2f position, check if the joint is configured correctly.",
+        steer_joints_names_[i].c_str(), steer_values[i]);
+    }
   }
   return;
 }
@@ -977,15 +963,31 @@ bool SwerveController::check_joint_states_are_valid()
   bool drive_joints_valid = false;
   bool steer_joints_valid = false;
 
-  const double fl_drive_joint_value = state_interfaces_[STATE_DRIVE_FL_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double fr_drive_joint_value = state_interfaces_[STATE_DRIVE_FR_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double rl_drive_joint_value = state_interfaces_[STATE_DRIVE_RL_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double rr_drive_joint_value = state_interfaces_[STATE_DRIVE_RR_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+  const double fl_drive_joint_value =
+    state_interfaces_[STATE_DRIVE_FL_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double fr_drive_joint_value =
+    state_interfaces_[STATE_DRIVE_FR_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double rl_drive_joint_value =
+    state_interfaces_[STATE_DRIVE_RL_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double rr_drive_joint_value =
+    state_interfaces_[STATE_DRIVE_RR_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
 
-  const double fl_steer_joint_value = state_interfaces_[STATE_STEER_FL_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double fr_steer_joint_value = state_interfaces_[STATE_STEER_FR_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double rl_steer_joint_value = state_interfaces_[STATE_STEER_RL_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-  const double rr_steer_joint_value = state_interfaces_[STATE_STEER_RR_WHEEL].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+  const double fl_steer_joint_value =
+    state_interfaces_[STATE_STEER_FL_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double fr_steer_joint_value =
+    state_interfaces_[STATE_STEER_FR_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double rl_steer_joint_value =
+    state_interfaces_[STATE_STEER_RL_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+  const double rr_steer_joint_value =
+    state_interfaces_[STATE_STEER_RR_WHEEL].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
 
   if (
     !std::isnan(fr_drive_joint_value) && !std::isnan(fl_drive_joint_value) &&
@@ -1166,6 +1168,7 @@ double SwerveController::normalise_angle(float angle)
   if (angle > M_PI) angle -= 2 * M_PI;
 
   return angle;
+
 }
 
 double SwerveController::difference_between_angles(float a, float b)

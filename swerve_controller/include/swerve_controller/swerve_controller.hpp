@@ -1,26 +1,26 @@
 /*
-* Copyright (c) 2020, Exobotic
-* Copyright (c) 2017, Irstea
-* Copyright (c) 2013, PAL Robotics, S.L.
-* Copyright (c) 2023, Gabriel Urbain
-* Copyright (c) 2023, Stogl Robotics Consulting UG (haftungsbeschränkt)
-* Copyright (c) 2023, Patrick Ven der Velde
-* Copyright (c) 2023, Australian Centre For Robotics
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* Author: Jerome Justin
-*/
+ * Copyright (c) 2020, Exobotic
+ * Copyright (c) 2017, Irstea
+ * Copyright (c) 2013, PAL Robotics, S.L.
+ * Copyright (c) 2023, Gabriel Urbain
+ * Copyright (c) 2023, Stogl Robotics Consulting UG (haftungsbeschränkt)
+ * Copyright (c) 2023, Patrick Ven der Velde
+ * Copyright (c) 2023, Australian Centre For Robotics
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Author: Jerome Justin
+ */
 
 #ifndef SWERVE_CONTROLLER__SWERVE_CONTROLLER_HPP_
 #define SWERVE_CONTROLLER__SWERVE_CONTROLLER_HPP_
@@ -120,7 +120,8 @@ public:
   controller_interface::CallbackReturn on_shutdown(
     const rclcpp_lifecycle::State & previous_state) override;
 
-  controller_interface::return_type update_reference_from_subscribers(const rclcpp::Time & time, const rclcpp::Duration & /*period*/) override;
+  controller_interface::return_type update_reference_from_subscribers(
+    const rclcpp::Time & time, const rclcpp::Duration & /*period*/) override;
 
   controller_interface::return_type update_and_write_commands(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
@@ -156,7 +157,7 @@ protected:
 
   std::vector<std::string> steer_joints_names_;
   std::vector<std::string> drive_joints_names_;
-  
+
   std::vector<std::string> drive_joints_state_names_;
   std::vector<std::string> steer_joints_state_names_;
 
@@ -266,6 +267,12 @@ protected:
   float min_steering_angle_ = -M_PI;
   float max_steering_angle_ = M_PI;
 
+  std::pair<double, double> calculate_steering_angles(double vx, double vy, double speed);
+
+  const DriveModuleDesiredValues & select_best_state(
+    const DriveModuleDesiredValues & forward, const DriveModuleDesiredValues & reverse,
+    double current_velocity, double current_steering, double tolerance = 1e-7);
+
   bool reset();
 
   void brake();
@@ -275,8 +282,7 @@ protected:
 
   bool check_joint_states_are_valid();
 
-  void check_steering_limits(
-    std::vector<DriveModuleDesiredValues> & result);
+  void check_steering_limits(std::vector<DriveModuleDesiredValues> & result);
 
   bool is_close(float a, float b, float abs_tol, float rel_tol);
 
@@ -288,8 +294,7 @@ protected:
   void find_icrs(std::vector<double> angles);
 
   // callback for topic interface
-  void reference_callback(
-    const std::shared_ptr<ControllerTwistReferenceMsg> msg);
+  void reference_callback(const std::shared_ptr<ControllerTwistReferenceMsg> msg);
 
   void reference_callback_unstamped(const std::shared_ptr<geometry_msgs::msg::Twist> msg);
 };
