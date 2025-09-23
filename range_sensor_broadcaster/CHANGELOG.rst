@@ -2,6 +2,34 @@
 Changelog for package range_sensor_broadcaster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.32.0 (2025-09-12)
+-------------------
+* Fix temporary copies of other semantic components (backport `#1905 <https://github.com/ros-controls/ros2_controllers/issues/1905>`_) (`#1908 <https://github.com/ros-controls/ros2_controllers/issues/1908>`_)
+* Contributors: mergify[bot]
+
+4.31.0 (2025-08-27)
+-------------------
+
+4.30.1 (2025-08-03)
+-------------------
+
+4.30.0 (2025-07-31)
+-------------------
+
+4.29.0 (2025-07-23)
+-------------------
+
+4.28.0 (2025-07-14)
+-------------------
+
+4.27.1 (2025-07-02)
+-------------------
+* Fix cmake deprecation (backport `#1780 <https://github.com/ros-controls/ros2_controllers/issues/1780>`_) (`#1782 <https://github.com/ros-controls/ros2_controllers/issues/1782>`_)
+* Contributors: mergify[bot]
+
+4.27.0 (2025-06-23)
+-------------------
+
 4.26.0 (2025-06-06)
 -------------------
 * Remove CMAKE_CXX_STANDARD (backport `#1704 <https://github.com/ros-controls/ros2_controllers/issues/1704>`_) (`#1706 <https://github.com/ros-controls/ros2_controllers/issues/1706>`_)

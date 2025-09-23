@@ -2,6 +2,36 @@
 Changelog for package pid_controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.32.0 (2025-09-12)
+-------------------
+
+4.31.0 (2025-08-27)
+-------------------
+
+4.30.1 (2025-08-03)
+-------------------
+
+4.30.0 (2025-07-31)
+-------------------
+
+4.29.0 (2025-07-23)
+-------------------
+* Apply API change of PidROS (backport `#1823 <https://github.com/ros-controls/ros2_controllers/issues/1823>`_) (`#1826 <https://github.com/ros-controls/ros2_controllers/issues/1826>`_)
+* Change the tests to work without deprecated PID settings (backport `#1824 <https://github.com/ros-controls/ros2_controllers/issues/1824>`_) (`#1825 <https://github.com/ros-controls/ros2_controllers/issues/1825>`_)
+* Contributors: mergify[bot]
+
+4.28.0 (2025-07-14)
+-------------------
+
+4.27.1 (2025-07-02)
+-------------------
+
+4.27.0 (2025-06-23)
+-------------------
+* Add new members for PID controller parameters (backport `#1585 <https://github.com/ros-controls/ros2_controllers/issues/1585>`_) (`#1769 <https://github.com/ros-controls/ros2_controllers/issues/1769>`_)
+* Set enable_feedforward parameter in the respective tests (backport `#1743 <https://github.com/ros-controls/ros2_controllers/issues/1743>`_) (`#1744 <https://github.com/ros-controls/ros2_controllers/issues/1744>`_)
+* Contributors: Victor Coutinho Vieira Santos, Sai Kishor Kothakota, Christoph Fröhlich
+
 4.26.0 (2025-06-06)
 -------------------
 * Use target_link_libraries instead of ament_target_dependencies (backport `#1697 <https://github.com/ros-controls/ros2_controllers/issues/1697>`_) (`#1699 <https://github.com/ros-controls/ros2_controllers/issues/1699>`_)

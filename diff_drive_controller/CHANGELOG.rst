@@ -2,6 +2,33 @@
 Changelog for package diff_drive_controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.32.0 (2025-09-12)
+-------------------
+
+4.31.0 (2025-08-27)
+-------------------
+
+4.30.1 (2025-08-03)
+-------------------
+
+4.30.0 (2025-07-31)
+-------------------
+
+4.29.0 (2025-07-23)
+-------------------
+
+4.28.0 (2025-07-14)
+-------------------
+* Explicit cast rcutils_duration_value_t (backport `#1808 <https://github.com/ros-controls/ros2_controllers/issues/1808>`_) (`#1812 <https://github.com/ros-controls/ros2_controllers/issues/1812>`_)
+* Update description of limit() function in speed_limiter (backport `#1793 <https://github.com/ros-controls/ros2_controllers/issues/1793>`_) (`#1795 <https://github.com/ros-controls/ros2_controllers/issues/1795>`_)
+* Contributors: Christoph Fröhlich, mergify[bot]
+
+4.27.1 (2025-07-02)
+-------------------
+
+4.27.0 (2025-06-23)
+-------------------
+
 4.26.0 (2025-06-06)
 -------------------
 * Fix DiffDrive claiming state when open_loop is set (`#1730 <https://github.com/ros-controls/ros2_controllers/issues/1730>`_)

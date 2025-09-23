@@ -2,6 +2,32 @@
 Changelog for package gpio_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.32.0 (2025-09-12)
+-------------------
+
+4.31.0 (2025-08-27)
+-------------------
+
+4.30.1 (2025-08-03)
+-------------------
+
+4.30.0 (2025-07-31)
+-------------------
+
+4.29.0 (2025-07-23)
+-------------------
+
+4.28.0 (2025-07-14)
+-------------------
+
+4.27.1 (2025-07-02)
+-------------------
+* Fix cmake deprecation (backport `#1780 <https://github.com/ros-controls/ros2_controllers/issues/1780>`_) (`#1782 <https://github.com/ros-controls/ros2_controllers/issues/1782>`_)
+* Contributors: mergify[bot]
+
+4.27.0 (2025-06-23)
+-------------------
+
 4.26.0 (2025-06-06)
 -------------------
 * Add missing github_url to rst files (backport `#1717 <https://github.com/ros-controls/ros2_controllers/issues/1717>`_) (`#1719 <https://github.com/ros-controls/ros2_controllers/issues/1719>`_)

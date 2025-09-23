@@ -2,6 +2,33 @@
 Changelog for package mecanum_drive_controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.32.0 (2025-09-12)
+-------------------
+
+4.31.0 (2025-08-27)
+-------------------
+
+4.30.1 (2025-08-03)
+-------------------
+
+4.30.0 (2025-07-31)
+-------------------
+
+4.29.0 (2025-07-23)
+-------------------
+
+4.28.0 (2025-07-14)
+-------------------
+* Mecanum Drive: Populate the pose covariance matrix (backport `#1772 <https://github.com/ros-controls/ros2_controllers/issues/1772>`_) (`#1807 <https://github.com/ros-controls/ros2_controllers/issues/1807>`_)
+* Add tf_frame_prefix parameters to mecanum_drive_controller (backport `#1680 <https://github.com/ros-controls/ros2_controllers/issues/1680>`_) (`#1810 <https://github.com/ros-controls/ros2_controllers/issues/1810>`_)
+* Contributors: Hilary Luo, Dawid Kmak
+
+4.27.1 (2025-07-02)
+-------------------
+
+4.27.0 (2025-06-23)
+-------------------
+
 4.26.0 (2025-06-06)
 -------------------
 * Add missing github_url to rst files (backport `#1717 <https://github.com/ros-controls/ros2_controllers/issues/1717>`_) (`#1719 <https://github.com/ros-controls/ros2_controllers/issues/1719>`_)
