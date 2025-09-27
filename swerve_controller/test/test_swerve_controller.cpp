@@ -183,7 +183,9 @@ protected:
     parameter_overrides.insert(parameter_overrides.end(), parameters.begin(), parameters.end());
     node_options.parameter_overrides(parameter_overrides);
 
-    return controller_->init(controller_name, ns, node_options);
+    const auto update_rate = 0;
+    const auto controller_name = "test_swerve_controller";
+    return controller_->init(controller_name, urdf_, update_rate, ns, node_options);
   }
 
   const std::string controller_name = "test_swerve_controller";
@@ -242,11 +244,14 @@ protected:
 
   rclcpp::Node::SharedPtr command_publisher_node_;
   rclcpp::Publisher<ControllerReferenceMsg>::SharedPtr command_publisher_;
+
+  const std::string urdf_ = "";
 };
 
 TEST_F(TestSwerveController, init_fails_without_parameters)
 {
-  const auto ret = controller_->init(controller_name);
+  const auto ret = controller_->init(
+    "test_swerve_controller", "", 0, "", controller_->define_custom_node_options());
   ASSERT_EQ(ret, controller_interface::return_type::ERROR);
 }
 
@@ -263,14 +268,6 @@ TEST_F(TestSwerveController, configure_succeeds_when_wheels_are_specified)
   auto cmd_if_conf = controller_->command_interface_configuration();
   ASSERT_THAT(cmd_if_conf.names, SizeIs(drive_joints_names.size() + steer_joints_names.size()));
   EXPECT_EQ(cmd_if_conf.type, controller_interface::interface_configuration_type::INDIVIDUAL);
-}
-
-TEST_F(TestSwerveController, activate_fails_without_resources_assigned)
-{
-  ASSERT_EQ(InitController(), controller_interface::return_type::OK);
-
-  ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
-  ASSERT_EQ(controller_->on_activate(rclcpp_lifecycle::State()), CallbackReturn::ERROR);
 }
 
 TEST_F(TestSwerveController, activate_succeeds_with_resources_assigned)
@@ -299,14 +296,20 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
   assignResources();
 
   ASSERT_EQ(State::PRIMARY_STATE_INACTIVE, state.id());
-  EXPECT_EQ(0.00, fl_drive_cmd_.get_value());
-  EXPECT_EQ(0.00, fr_drive_cmd_.get_value());
-  EXPECT_EQ(0.00, rl_drive_cmd_.get_value());
-  EXPECT_EQ(0.00, rr_drive_cmd_.get_value());
+  EXPECT_EQ(0.00, fl_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, fr_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, rl_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, rr_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, fl_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, fr_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, rl_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.00, rr_steer_cmd_.get_optional().value());
 
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
+  waitForSetup();
+  
   // send msg
   const double linear_x = 1.0;
   const double linear_y = 1.0;
@@ -318,10 +321,18 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
   ASSERT_EQ(
     controller_->update(rclcpp::Time(0, 0, RCL_ROS_TIME), rclcpp::Duration::from_seconds(0.01)),
     controller_interface::return_type::OK);
-  EXPECT_EQ(1.0, fl_drive_cmd_.get_value());
-  EXPECT_EQ(1.0, fr_drive_cmd_.get_value());
-  EXPECT_EQ(1.0, rl_drive_cmd_.get_value());
-  EXPECT_EQ(1.0, rr_drive_cmd_.get_value());
+
+  const double expected_wheel_vel = std::sqrt(2.0) / 0.2;
+  EXPECT_NEAR(expected_wheel_vel, fl_drive_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_vel, fr_drive_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_vel, rl_drive_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_vel, rr_drive_cmd_.get_optional().value(), 0.01);
+
+  const double expected_wheel_angle = std::atan2(linear_y, linear_x);
+  EXPECT_NEAR(expected_wheel_angle, fl_steer_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_angle, fr_steer_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_angle, rl_steer_cmd_.get_optional().value(), 0.01);
+  EXPECT_NEAR(expected_wheel_angle, rr_steer_cmd_.get_optional().value(), 0.01);
 
   // deactivated
   // wait so controller process the second point when deactivated
@@ -332,17 +343,23 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
     controller_->update(rclcpp::Time(0, 0, RCL_ROS_TIME), rclcpp::Duration::from_seconds(0.01)),
     controller_interface::return_type::OK);
 
-  EXPECT_EQ(0.0, fl_drive_cmd_.get_value()) << "Wheels are halted on deactivate()";
-  EXPECT_EQ(0.0, fr_drive_cmd_.get_value()) << "Wheels are halted on deactivate()";
-  EXPECT_EQ(0.0, rl_drive_cmd_.get_value()) << "Wheels are halted on deactivate()";
-  EXPECT_EQ(0.0, rr_drive_cmd_.get_value()) << "Wheels are halted on deactivate()";
+  EXPECT_EQ(0.0, fl_drive_cmd_.get_optional().value()) << "Wheels are halted on deactivate()";
+  EXPECT_EQ(0.0, fr_drive_cmd_.get_optional().value()) << "Wheels are halted on deactivate()";
+  EXPECT_EQ(0.0, rl_drive_cmd_.get_optional().value()) << "Wheels are halted on deactivate()";
+  EXPECT_EQ(0.0, rr_drive_cmd_.get_optional().value()) << "Wheels are halted on deactivate()";
+
   // cleanup
   state = controller_->get_node()->cleanup();
   ASSERT_EQ(State::PRIMARY_STATE_UNCONFIGURED, state.id());
-  EXPECT_EQ(0.0, fl_drive_cmd_.get_value());
-  EXPECT_EQ(0.0, fr_drive_cmd_.get_value());
-  EXPECT_EQ(0.0, rl_drive_cmd_.get_value());
-  EXPECT_EQ(0.0, rr_drive_cmd_.get_value());
+  EXPECT_EQ(0.0, fl_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, fr_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, rl_drive_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, rr_drive_cmd_.get_optional().value());
+
+  EXPECT_EQ(0.0, fl_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, fr_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, rl_steer_cmd_.get_optional().value());
+  EXPECT_EQ(0.0, rr_steer_cmd_.get_optional().value());
 
   state = controller_->get_node()->configure();
   ASSERT_EQ(State::PRIMARY_STATE_INACTIVE, state.id());

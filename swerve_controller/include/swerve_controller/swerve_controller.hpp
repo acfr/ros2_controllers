@@ -141,18 +141,10 @@ protected:
     double steering_angle;  // rad/s
     double drive_velocity;  // m/s
   };
-
-  struct Point
-  {
-    double x;
-    double y;
-    double z;
-  };
-
   struct Line
   {
-    Point p1;
-    Point p2;
+    Eigen::Vector3d p1;
+    Eigen::Vector3d p2;
   };
 
   std::vector<std::string> steer_joints_names_;
@@ -290,7 +282,7 @@ protected:
   double difference_between_angles(float a, float b);
 
   void publish_icrs(std::vector<std::vector<double>> icr_list);
-  std::vector<Point> find_wheel_centre_coords();
+  std::vector<Eigen::Vector3d> find_wheel_centre_coords();
   void find_icrs(std::vector<double> angles);
 
   // callback for topic interface

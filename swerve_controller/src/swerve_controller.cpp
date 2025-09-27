@@ -1017,25 +1017,25 @@ bool SwerveController::check_joint_states_are_valid()
   return false;
 }
 
-std::vector<SwerveController::Point> SwerveController::find_wheel_centre_coords()
+std::vector<Eigen::Vector3d> SwerveController::find_wheel_centre_coords()
 {
-  Point p1 = {1, 1, 0};
-  Point p2 = {1, -1, 0};
-  Point p3 = {-1, 1, 0};
-  Point p4 = {-1, -1, 0};
+  Eigen::Vector3d p1 = {1, 1, 0};
+  Eigen::Vector3d p2 = {1, -1, 0};
+  Eigen::Vector3d p3 = {-1, 1, 0};
+  Eigen::Vector3d p4 = {-1, -1, 0};
 
-  std::vector<Point> centres = {p1, p2, p3, p4};
+  std::vector<Eigen::Vector3d> centres = {p1, p2, p3, p4};
 
   for (std::size_t i = 0; i < centres.size(); i++)
   {
     // x is vertical
-    double wheel_centre_x = centres[i].x * wheel_params_.wheelbase / 2;
+    double wheel_centre_x = centres[i].x() * wheel_params_.wheelbase / 2;
 
     // y is horizontal
     const double steering_track =
       wheel_params_.wheel_track - 2 * wheel_params_.drive_to_steer_offset;
 
-    double wheel_centre_y = centres[i].y * steering_track / 2;
+    double wheel_centre_y = centres[i].y() * steering_track / 2;
 
     centres[i] = {wheel_centre_x, wheel_centre_y, wheel_params_.radius};
   }
@@ -1045,15 +1045,15 @@ std::vector<SwerveController::Point> SwerveController::find_wheel_centre_coords(
 
 void SwerveController::find_icrs(std::vector<double> angles)
 {
-  std::vector<Point> wheel_centres = find_wheel_centre_coords();
+  std::vector<Eigen::Vector3d> wheel_centres = find_wheel_centre_coords();
 
   Line icr_line;
   std::vector<Line> icr_lines;
 
   for (std::size_t i = 0; i < angles.size(); i++)
   {
-    icr_line.p1 = {wheel_centres[i].x, wheel_centres[i].y, 0.0};
-    icr_line.p2 = {-sin(angles[i]) + wheel_centres[i].x, cos(angles[i]) + wheel_centres[i].y, 0.0};
+    icr_line.p1 = {wheel_centres[i].x(), wheel_centres[i].y(), 0.0};
+    icr_line.p2 = {-sin(angles[i]) + wheel_centres[i].x(), cos(angles[i]) + wheel_centres[i].y(), 0.0};
 
     icr_lines.push_back(icr_line);
   }
@@ -1071,10 +1071,10 @@ void SwerveController::find_icrs(std::vector<double> angles)
         Line segment_two = icr_lines[j];
 
         // Find the intersection point of the two lines
-        Eigen::Vector3d seg_one_p1{segment_one.p1.x, segment_one.p1.y, 1.0};
-        Eigen::Vector3d seg_one_p2{segment_one.p2.x, segment_one.p2.y, 1.0};
-        Eigen::Vector3d seg_two_p1{segment_two.p1.x, segment_two.p1.y, 1.0};
-        Eigen::Vector3d seg_two_p2{segment_two.p2.x, segment_two.p2.y, 1.0};
+        Eigen::Vector3d seg_one_p1{segment_one.p1.x(), segment_one.p1.y(), 1.0};
+        Eigen::Vector3d seg_one_p2{segment_one.p2.x(), segment_one.p2.y(), 1.0};
+        Eigen::Vector3d seg_two_p1{segment_two.p1.x(), segment_two.p1.y(), 1.0};
+        Eigen::Vector3d seg_two_p2{segment_two.p2.x(), segment_two.p2.y(), 1.0};
 
         Eigen::Vector3d l1 = seg_one_p1.cross(seg_one_p2);
         Eigen::Vector3d l2 = seg_two_p1.cross(seg_two_p2);
