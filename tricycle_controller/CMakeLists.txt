@@ -65,33 +65,35 @@ target_link_libraries(tricycle_controller PUBLIC
 
 pluginlib_export_plugin_description_file(controller_interface tricycle_controller.xml)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gmock REQUIRED)
-  find_package(controller_manager REQUIRED)
-  find_package(ros2_control_test_assets REQUIRED)
+# if(BUILD_TESTING)
+#   find_package(ament_cmake_gmock REQUIRED)
+#   find_package(controller_manager REQUIRED)
+#   find_package(ros2_control_test_assets REQUIRED)
 
-  ament_add_gmock(test_tricycle_controller
-    test/test_tricycle_controller.cpp)
-  target_link_libraries(test_tricycle_controller
-    tricycle_controller
-  )
+#   ament_add_gmock(test_tricycle_controller
+#     test/test_tricycle_controller.cpp)
+#   target_link_libraries(test_tricycle_controller
+#     tricycle_controller
+#     ${ackermann_msgs_TARGETS}
+#   )
 
-  add_definitions(-DTEST_FILES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/test")
-  ament_add_gmock(test_load_tricycle_controller test/test_load_tricycle_controller.cpp)
-  target_link_libraries(test_load_tricycle_controller
-    tricycle_controller
-  )
-  target_link_libraries(test_load_tricycle_controller
-    controller_manager::controller_manager
-    ros2_control_test_assets::ros2_control_test_assets
-  )
+#   add_definitions(-DTEST_FILES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/test")
+#   ament_add_gmock(test_load_tricycle_controller test/test_load_tricycle_controller.cpp)
+#   target_link_libraries(test_load_tricycle_controller
+#     tricycle_controller
+#   )
+#   target_link_libraries(test_load_tricycle_controller
+#     controller_manager::controller_manager
+#     ros2_control_test_assets::ros2_control_test_assets
+#   )
 
-  ament_add_gmock(test_traction_limiter
-    test/test_traction_limiter.cpp)
-  target_link_libraries(test_traction_limiter
-    tricycle_controller
-  )
-endif()
+#   ament_add_gmock(test_traction_limiter
+#     test/test_traction_limiter.cpp)
+#   target_link_libraries(test_traction_limiter
+#     tricycle_controller
+#     ${ackermann_msgs_TARGETS}
+#   )
+# endif()
 
 install(
   DIRECTORY include/

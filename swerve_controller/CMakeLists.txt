@@ -74,36 +74,23 @@ target_link_libraries(swerve_controller   PUBLIC
 
 pluginlib_export_plugin_description_file(controller_interface swerve_controller.xml)
 
-# if(BUILD_TESTING)
-#   find_package(ament_cmake_gmock REQUIRED)
-#   find_package(controller_manager REQUIRED)
-#   find_package(ros2_control_test_assets REQUIRED)
+if(BUILD_TESTING)
+  find_package(ament_cmake_gmock REQUIRED)
+  find_package(controller_manager REQUIRED)
+  find_package(hardware_interface REQUIRED)
 
-#   ament_add_gmock(test_swerve_controller
-#     test/test_swerve_controller.cpp)
-#   target_link_libraries(test_swerve_controller
-#     swerve_controller
-#   )
-#   ament_target_dependencies(test_swerve_controller
-#     geometry_msgs
-#     hardware_interface
-#     nav_msgs
-#     rclcpp
-#     rclcpp_lifecycle
-#     realtime_tools
-#     tf2
-#     tf2_msgs
-#   )
-
-#   add_rostest_with_parameters_gmock(test_load_swerve_controller
-#     test/test_load_swerve_controller.cpp
-#     ${CMAKE_CURRENT_SOURCE_DIR}/test/config/test_swerve_controller.yaml
-#   )
-#   ament_target_dependencies(test_load_swerve_controller
-#     controller_manager
-#     ros2_control_test_assets
-#   )
-# endif()
+  add_definitions(-DTEST_FILES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/test")
+  ament_add_gmock(test_swerve_controller
+    test/test_swerve_controller.cpp)
+  target_link_libraries(test_swerve_controller
+    swerve_controller
+  )
+  
+  ament_add_gmock(test_load_swerve_controller test/test_load_swerve_controller.cpp)
+  target_link_libraries(test_load_swerve_controller
+    controller_manager::controller_manager
+  )
+endif()
 
 install(
   DIRECTORY include/

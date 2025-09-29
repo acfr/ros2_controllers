@@ -20,7 +20,6 @@
 #include "rclcpp/executor.hpp"
 #include "rclcpp/executors/single_threaded_executor.hpp"
 #include "rclcpp/utilities.hpp"
-#include "ros2_control_test_assets/descriptions.hpp"
 
 const std::string valid_swerve_urdf =
   R"(
@@ -364,12 +363,15 @@ TEST(TestLoadSwerveController, load_controller)
     std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
 
   controller_manager::ControllerManager cm(
-    std::make_unique<hardware_interface::ResourceManager>(valid_swerve_urdf),
-    executor, "test_controller_manager");
+    executor, valid_swerve_urdf, true, "test_controller_manager");
 
-  ASSERT_NE(
-    cm.load_controller("test_swerve_controller", "swerve_controller/SwerverController"),
-    nullptr);
+  const std::string test_file_path =
+    std::string(TEST_FILES_DIRECTORY) + "/config/test_swerve_controller.yaml";
+
+  cm.set_parameter({"test_swerve_controller.params_file", test_file_path});
+  cm.set_parameter({"test_swerve_controller.type", "swerve_controller/SwerveController"});
+
+  ASSERT_NE(cm.load_controller("test_swerve_controller"), nullptr);
 }
 
 int main(int argc, char ** argv)
