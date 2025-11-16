@@ -640,17 +640,17 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     std::vector<double> drive_speeds = {fl_speed, fr_speed, rl_speed, rr_speed};
     std::vector<double> scales;
 
-    float max_drive_speed = 1.0;
+    double max_drive_speed = 1.0;
 
     // This part of the code implements some logic from zinger_swerve_controller
     // Shout out to @pvandervelde
     for (std::size_t i = 0; i < drive_speeds.size(); i++)
     {
-      float a = drive_speeds[i];
-      float b = 0.0;
-      float abs_tol = 1e-15;
-      float rel_tol = 1e-15;
-      float scale = 1.0f;
+      double a = drive_speeds[i];
+      double b = 0.0;
+      double abs_tol = 1e-15;
+      double rel_tol = 1e-15;
+      double scale = 1.0f;
 
       if (!is_close(a, b, abs_tol, rel_tol))
       {
@@ -661,7 +661,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       scales.push_back(scale);
     }
 
-    float normalising_factor = *max_element(scales.begin(), scales.end());
+    double normalising_factor = *max_element(scales.begin(), scales.end());
 
     std::vector<DriveModuleDesiredValues> forward_states;
     std::vector<DriveModuleDesiredValues> reverse_states;
@@ -789,7 +789,7 @@ void SwerveController::check_steering_limits(std::vector<DriveModuleDesiredValue
 {
   for (std::size_t i = 0; i < result.size(); i++)
   {
-    float angle = result[i].steering_angle;
+    double angle = result[i].steering_angle;
 
     if (angle > max_steering_angle_)
     {
@@ -915,7 +915,7 @@ void SwerveController::brake()
   }
 
   // The steer joints hold the current position
-  int no_of_steer_joints = params_.steer_joints_names.size();
+  size_t no_of_steer_joints = params_.steer_joints_names.size();
 
   for (size_t i = 0; i < no_of_steer_joints; i++)
   {
@@ -1081,8 +1081,8 @@ void SwerveController::find_icrs(std::vector<double> angles)
 
         Eigen::Vector3d result = l1.cross(l2);
 
-        float abs_tol = 1e-15;
-        float rel_tol = 1e-15;
+        double abs_tol = 1e-15;
+        double rel_tol = 1e-15;
         if (!is_close(result.z(), 0.0, abs_tol, rel_tol))
         {
           icrs.push_back({result.x() / result.z(), result.y() / result.z()});
@@ -1120,8 +1120,8 @@ void SwerveController::publish_icrs(std::vector<std::vector<double>> icr_list)
 
   for (std::size_t i = 0; i < icr_list.size(); i++)
   {
-    float x_icr = icr_list[i][0];
-    float y_icr = icr_list[i][1];
+    double x_icr = icr_list[i][0];
+    double y_icr = icr_list[i][1];
 
     geometry_msgs::msg::Point point;
     point.x = x_icr;
@@ -1131,25 +1131,25 @@ void SwerveController::publish_icrs(std::vector<std::vector<double>> icr_list)
     icr_publisher_->msg_.colors.push_back(color_);
   }
 
-  float x_body_icr = -linear_y_command_ / angular_command_;
-  float y_body_icr = linear_x_command_ / angular_command_;
+  double x_body_icr = -linear_y_command_ / angular_command_;
+  double y_body_icr = linear_x_command_ / angular_command_;
 
   geometry_msgs::msg::Point point;
   point.x = x_body_icr;
   point.y = y_body_icr;
   point.z = 0.0;
 
-  color_.r = 1.0;
-  color_.g = 0.38;
-  color_.b = 0.278;
-  color_.a = 1.0;
+  color_.r = 1.0f;
+  color_.g = 0.38f;
+  color_.b = 0.278f;
+  color_.a = 1.0f;
   icr_publisher_->msg_.points.push_back(point);
   icr_publisher_->msg_.colors.push_back(color_);
 
   icr_publisher_->unlockAndPublish();
 }
 
-bool SwerveController::is_close(float a, float b, float abs_tol, float rel_tol)
+bool SwerveController::is_close(double a, double b, double abs_tol, double rel_tol)
 {
   if ((std::abs(a - b) <= (abs_tol + rel_tol * std::abs(b))))
     return true;
@@ -1157,7 +1157,7 @@ bool SwerveController::is_close(float a, float b, float abs_tol, float rel_tol)
     return false;
 }
 
-double SwerveController::normalise_angle(float angle)
+double SwerveController::normalise_angle(double angle)
 {
   // reduce the angle to [-2pi, 2pi]
   angle = fmod(angle, (2 * M_PI));
@@ -1171,12 +1171,12 @@ double SwerveController::normalise_angle(float angle)
 
 }
 
-double SwerveController::difference_between_angles(float a, float b)
+double SwerveController::difference_between_angles(double a, double b)
 {
-  float normalized_start = normalise_angle(a);
-  float normalized_end = normalise_angle(b);
+  double normalized_start = normalise_angle(a);
+  double normalized_end = normalise_angle(b);
 
-  float delta = normalized_end - normalized_start;
+  double delta = normalized_end - normalized_start;
   // make sure we get the smallest angle
   if (delta > M_PI)
   {

@@ -256,8 +256,8 @@ protected:
 
   std::queue<ControllerTwistReferenceMsg> previous_commands_;  // last two commands
 
-  float min_steering_angle_ = -M_PI;
-  float max_steering_angle_ = M_PI;
+  double min_steering_angle_ = -M_PI;
+  double max_steering_angle_ = M_PI;
 
   std::pair<double, double> calculate_steering_angles(double vx, double vy, double speed);
 
@@ -276,10 +276,10 @@ protected:
 
   void check_steering_limits(std::vector<DriveModuleDesiredValues> & result);
 
-  bool is_close(float a, float b, float abs_tol, float rel_tol);
+  bool is_close(double a, double b, double abs_tol, double rel_tol);
 
-  double normalise_angle(float angle);
-  double difference_between_angles(float a, float b);
+  double normalise_angle(double angle);
+  double difference_between_angles(double a, double b);
 
   void publish_icrs(std::vector<std::vector<double>> icr_list);
   std::vector<Eigen::Vector3d> find_wheel_centre_coords();

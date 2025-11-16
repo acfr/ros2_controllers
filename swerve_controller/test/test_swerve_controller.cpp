@@ -184,8 +184,8 @@ protected:
     node_options.parameter_overrides(parameter_overrides);
 
     const auto update_rate = 0;
-    const auto controller_name = "test_swerve_controller";
-    return controller_->init(controller_name, urdf_, update_rate, ns, node_options);
+    const auto ctrl_name = "test_swerve_controller";
+    return controller_->init(ctrl_name, urdf_, update_rate, ns, node_options);
   }
 
   const std::string controller_name = "test_swerve_controller";

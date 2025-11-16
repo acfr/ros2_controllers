@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
-project(swerve_controller LANGUAGES CXX)
+project(swerve_controller)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
+find_package(ros2_control_cmake REQUIRED)
+set_compiler_options()
+export_windows_symbols()
 
 # find dependencies
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -33,11 +33,13 @@ find_package(backward_ros REQUIRED)
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
+add_compile_definitions(RCPPUTILS_VERSION_MAJOR=${rcpputils_VERSION_MAJOR})
+add_compile_definitions(RCPPUTILS_VERSION_MINOR=${rcpputils_VERSION_MINOR})
 
-include_directories(${THIS_PACKAGE_INCLUDE_DIRS})
-
+get_target_property(TB_INCLUDE_DIRS control_toolbox::rate_limiter_parameters INTERFACE_INCLUDE_DIRECTORIES)
 generate_parameter_library(swerve_controller_parameters
   src/swerve_controller_parameter.yaml
+  ${TB_INCLUDE_DIRS}/control_toolbox/custom_validators.hpp
 )
 
 add_library(
@@ -47,11 +49,15 @@ add_library(
   src/odometry.cpp
   src/speed_limiter.cpp
 )
+
 target_compile_features(swerve_controller PUBLIC cxx_std_17)
 target_include_directories(swerve_controller PUBLIC
-  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/swerve_controller>")
-target_link_libraries(swerve_controller   PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/swerve_controller>
+)
+
+target_link_libraries(swerve_controller   
+  PUBLIC
     swerve_controller_parameters
     control_toolbox::rate_limiter_parameters
     control_toolbox::control_toolbox
@@ -71,7 +77,6 @@ target_link_libraries(swerve_controller   PUBLIC
     ${nav_msgs_TARGETS}
     ${visualization_msgs_TARGETS}
     ${ros2_controllers_interfaces_TARGETS})
-
 pluginlib_export_plugin_description_file(controller_interface swerve_controller.xml)
 
 if(BUILD_TESTING)
