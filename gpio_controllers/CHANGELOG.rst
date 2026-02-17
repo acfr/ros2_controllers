@@ -2,6 +2,32 @@
 Changelog for package gpio_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.37.0 (2026-02-03)
+-------------------
+
+4.36.0 (2025-12-31)
+-------------------
+* Controller interface api update to ros2_controller packages (backport `#1973 <https://github.com/ros-controls/ros2_controllers/issues/1973>`_) (`#2068 <https://github.com/ros-controls/ros2_controllers/issues/2068>`_)
+* Contributors: mergify[bot]
+
+4.35.0 (2025-12-01)
+-------------------
+
+4.34.0 (2025-11-10)
+-------------------
+* Fix integer literal for size_t (backport `#1986 <https://github.com/ros-controls/ros2_controllers/issues/1986>`_) (`#1987 <https://github.com/ros-controls/ros2_controllers/issues/1987>`_)
+* Contributors: Christoph Fröhlich
+
+4.33.1 (2025-10-17)
+-------------------
+
+4.33.0 (2025-10-03)
+-------------------
+* Update API for realtime publisher (backport `#1830 <https://github.com/ros-controls/ros2_controllers/issues/1830>`_) (`#1944 <https://github.com/ros-controls/ros2_controllers/issues/1944>`_)
+* Update realtime containers (backport `#1721 <https://github.com/ros-controls/ros2_controllers/issues/1721>`_) (`#1935 <https://github.com/ros-controls/ros2_controllers/issues/1935>`_)
+* Use new handles API in ros2_controllers to fix deprecation warnings (backport `#1566 <https://github.com/ros-controls/ros2_controllers/issues/1566>`_) (`#1934 <https://github.com/ros-controls/ros2_controllers/issues/1934>`_)
+* Contributors: mergify[bot]
+
 4.32.0 (2025-09-12)
 -------------------
 

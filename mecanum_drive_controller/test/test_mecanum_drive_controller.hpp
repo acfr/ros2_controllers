@@ -84,6 +84,13 @@ class TestableMecanumDriveController : public mecanum_drive_controller::MecanumD
     when_ref_timeout_zero_for_reference_callback_expect_reference_msg_being_used_only_once);
   FRIEND_TEST(MecanumDriveControllerTest, SideToSideAndRotationOdometryTest);
 
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_test_prefix_false_no_namespace);
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_test_prefix_true_no_namespace);
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_blank_prefix_true_no_namespace);
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_test_prefix_false_set_namespace);
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_test_prefix_true_set_namespace);
+  FRIEND_TEST(MecanumDriveControllerTest, configure_succeeds_tf_blank_prefix_true_set_namespace);
+
 public:
   controller_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override
@@ -129,16 +136,6 @@ public:
   size_t get_rear_right_wheel_index() { return WheelIndex::REAR_RIGHT; }
 
   size_t get_rear_left_wheel_index() { return WheelIndex::REAR_LEFT; }
-
-  /**
-   * @brief Used to get the odometry message to verify its contents
-   *
-   * @return Copy of odometry msg from rt_odom_state_publisher_ object
-   */
-  nav_msgs::msg::Odometry get_rt_odom_state_publisher_msg()
-  {
-    return rt_odom_state_publisher_->msg_;
-  }
 };
 
 // We are using template class here for easier reuse of Fixture in specializations of controllers
@@ -176,10 +173,13 @@ protected:
     const rclcpp::NodeOptions & node_options = rclcpp::NodeOptions(), const std::string ns = "")
   {
     const auto urdf = "";
-
-    ASSERT_EQ(
-      controller_->init(controller_name, urdf, 0, ns, node_options),
-      controller_interface::return_type::OK);
+    controller_interface::ControllerInterfaceParams params;
+    params.controller_name = controller_name;
+    params.robot_description = urdf;
+    params.update_rate = 0;
+    params.node_namespace = ns;
+    params.node_options = node_options;
+    ASSERT_EQ(controller_->init(params), controller_interface::return_type::OK);
 
     std::vector<hardware_interface::LoanedCommandInterface> command_ifs;
     command_itfs_.reserve(joint_command_values_.size());

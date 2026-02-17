@@ -206,11 +206,6 @@ public:
   trajectory_msgs::msg::JointTrajectoryPoint get_state_error() { return state_error_; }
   trajectory_msgs::msg::JointTrajectoryPoint get_current_command() { return command_current_; }
 
-  control_msgs::msg::JointTrajectoryControllerState get_state_msg()
-  {
-    return state_publisher_->msg_;
-  }
-
   /**
    * a copy of the private member function
    */
@@ -284,17 +279,29 @@ public:
     traj_controller_ = std::make_shared<TestableJointTrajectoryController>();
 
     auto node_options = rclcpp::NodeOptions();
+    // read-only parameters have to be set before init
     std::vector<rclcpp::Parameter> parameter_overrides;
     parameter_overrides.push_back(rclcpp::Parameter("joints", joint_names_));
     parameter_overrides.push_back(
       rclcpp::Parameter("command_interfaces", command_interface_types_));
     parameter_overrides.push_back(rclcpp::Parameter("state_interfaces", state_interface_types_));
+    // avoid deprecation warning for legacy (default) antiwindup strategy
+    for (const auto & joint : joint_names_)
+    {
+      parameter_overrides.push_back(
+        rclcpp::Parameter("gains." + joint + ".antiwindup_strategy", "none"));
+    }
     parameter_overrides.insert(parameter_overrides.end(), parameters.begin(), parameters.end());
     node_options.parameter_overrides(parameter_overrides);
     traj_controller_->set_node_options(node_options);
 
-    return traj_controller_->init(
-      controller_name_, urdf, 100, "", traj_controller_->define_custom_node_options());
+    controller_interface::ControllerInterfaceParams params;
+    params.controller_name = controller_name_;
+    params.robot_description = urdf;
+    params.update_rate = 100;
+    params.node_namespace = "";
+    params.node_options = traj_controller_->define_custom_node_options();
+    return traj_controller_->init(params);
   }
 
   void SetPidParameters(double p_value = 0.0, double ff_value = 1.0)
@@ -308,7 +315,7 @@ public:
       const rclcpp::Parameter k_p(prefix + ".p", p_value);
       const rclcpp::Parameter k_i(prefix + ".i", 0.0);
       const rclcpp::Parameter k_d(prefix + ".d", 0.0);
-      const rclcpp::Parameter i_clamp(prefix + ".i_clamp", 0.0);
+      const rclcpp::Parameter i_clamp(prefix + ".i_clamp", 1000.0);
       const rclcpp::Parameter ff_velocity_scale(prefix + ".ff_velocity_scale", ff_value);
       node->set_parameters({k_p, k_i, k_d, i_clamp, ff_velocity_scale});
     }
@@ -393,13 +400,13 @@ public:
 
       // Add to export lists and set initial values
       cmd_interfaces.emplace_back(pos_cmd_interfaces_.back());
-      cmd_interfaces.back().set_value(initial_pos_joints[i]);
+      (void)cmd_interfaces.back().set_value(initial_pos_joints[i]);
       cmd_interfaces.emplace_back(vel_cmd_interfaces_.back());
-      cmd_interfaces.back().set_value(initial_vel_joints[i]);
+      (void)cmd_interfaces.back().set_value(initial_vel_joints[i]);
       cmd_interfaces.emplace_back(acc_cmd_interfaces_.back());
-      cmd_interfaces.back().set_value(initial_acc_joints[i]);
+      (void)cmd_interfaces.back().set_value(initial_acc_joints[i]);
       cmd_interfaces.emplace_back(eff_cmd_interfaces_.back());
-      cmd_interfaces.back().set_value(initial_eff_joints[i]);
+      (void)cmd_interfaces.back().set_value(initial_eff_joints[i]);
       if (separate_cmd_and_state_values)
       {
         joint_state_pos_[i] = INITIAL_POS_JOINTS[i];
@@ -419,9 +426,7 @@ public:
   {
     if (traj_controller_)
     {
-      if (
-        traj_controller_->get_lifecycle_state().id() ==
-        lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+      if (traj_controller_->get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
       {
         EXPECT_EQ(
           traj_controller_->get_node()->deactivate().id(),
@@ -690,9 +695,10 @@ public:
         for (size_t i = 0; i < 3; i++)
         {
           EXPECT_TRUE(is_same_sign_or_zero(
-            position.at(i) - pos_state_interfaces_[i].get_value(), joint_vel_[i]))
+            position.at(i) - pos_state_interfaces_[i].get_optional().value(), joint_vel_[i]))
             << "test position point " << position.at(i) << ", position state is "
-            << pos_state_interfaces_[i].get_value() << ", velocity command is " << joint_vel_[i];
+            << pos_state_interfaces_[i].get_optional().value() << ", velocity command is "
+            << joint_vel_[i];
         }
       }
       if (traj_controller_->has_effort_command_interface())
@@ -700,9 +706,11 @@ public:
         for (size_t i = 0; i < 3; i++)
         {
           EXPECT_TRUE(is_same_sign_or_zero(
-            position.at(i) - pos_state_interfaces_[i].get_value() + effort.at(i), joint_eff_[i]))
+            position.at(i) - pos_state_interfaces_[i].get_optional().value() + effort.at(i),
+            joint_eff_[i]))
             << "test position point " << position.at(i) << ", position state is "
-            << pos_state_interfaces_[i].get_value() << ", effort command is " << joint_eff_[i];
+            << pos_state_interfaces_[i].get_optional().value() << ", effort command is "
+            << joint_eff_[i];
         }
       }
     }

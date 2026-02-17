@@ -26,8 +26,14 @@ class OmniWheelDriveControllerTest
 
 TEST_F(OmniWheelDriveControllerTest, init_fails_without_parameters)
 {
-  const auto ret =
-    controller_->init(controller_name_, urdf_, 0, "", controller_->define_custom_node_options());
+  controller_interface::ControllerInterfaceParams params;
+  params.controller_name = controller_name_;
+  params.robot_description = urdf_;
+  params.update_rate = 0;
+  params.node_namespace = "";
+  params.node_options = controller_->define_custom_node_options();
+
+  const auto ret = controller_->init(params);
   ASSERT_EQ(ret, controller_interface::return_type::ERROR);
 }
 
@@ -322,7 +328,7 @@ TEST_F(OmniWheelDriveControllerTest, chainable_controller_unchained_mode)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -410,7 +416,7 @@ TEST_F(OmniWheelDriveControllerTest, chainable_controller_chained_mode)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -478,7 +484,7 @@ TEST_F(OmniWheelDriveControllerTest, deactivate_then_activate)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -523,7 +529,7 @@ TEST_F(OmniWheelDriveControllerTest, deactivate_then_activate)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   for (const auto & interface : controller_->reference_interfaces_)
   {
@@ -572,7 +578,7 @@ TEST_F(OmniWheelDriveControllerTest, command_with_zero_timestamp_is_accepted_wit
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // published command message with zero timestamp sets the command interfaces to the correct values
   publish_twist_timestamped(rclcpp::Time(0, 0, RCL_ROS_TIME));
@@ -615,7 +621,7 @@ TEST_F(OmniWheelDriveControllerTest, 3_wheel_test)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -683,7 +689,7 @@ TEST_F(OmniWheelDriveControllerTest, 3_wheel_rot_test)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -751,7 +757,7 @@ TEST_F(OmniWheelDriveControllerTest, 4_wheel_rot_test)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -819,7 +825,7 @@ TEST_F(OmniWheelDriveControllerTest, 5_wheel_test)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)

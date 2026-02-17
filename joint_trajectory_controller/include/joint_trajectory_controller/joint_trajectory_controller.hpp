@@ -166,14 +166,15 @@ protected:
   using StatePublisherPtr = std::unique_ptr<StatePublisher>;
   rclcpp::Publisher<ControllerStateMsg>::SharedPtr publisher_;
   StatePublisherPtr state_publisher_;
+  ControllerStateMsg state_msg_;
 
   using FollowJTrajAction = control_msgs::action::FollowJointTrajectory;
   using RealtimeGoalHandle = realtime_tools::RealtimeServerGoalHandle<FollowJTrajAction>;
   using RealtimeGoalHandlePtr = std::shared_ptr<RealtimeGoalHandle>;
   using RealtimeGoalHandleBuffer = realtime_tools::RealtimeBuffer<RealtimeGoalHandlePtr>;
 
+  RealtimeGoalHandleBuffer rt_active_goal_;  ///< Currently active action goal, if any.
   rclcpp_action::Server<FollowJTrajAction>::SharedPtr action_server_;
-  RealtimeGoalHandleBuffer rt_active_goal_;       ///< Currently active action goal, if any.
   std::atomic<bool> rt_has_pending_goal_{false};  ///< Is there a pending action goal?
   rclcpp::TimerBase::SharedPtr goal_handle_timer_;
   rclcpp::Duration action_monitor_period_ = rclcpp::Duration(50ms);
@@ -282,7 +283,15 @@ private:
   {
     for (size_t index = 0; index < num_cmd_joints_; ++index)
     {
-      joint_interface[index].get().set_value(trajectory_point_interface[map_cmd_to_joints_[index]]);
+      if (!joint_interface[index].get().set_value(
+            trajectory_point_interface[map_cmd_to_joints_[index]]))
+      {
+        RCLCPP_ERROR(
+          get_node()->get_logger(),
+          "Failed to set value for joint '%s' in command interface '%s'. ",
+          command_joint_names_[index].c_str(), joint_interface[index].get().get_name().c_str());
+        return;
+      }
     }
   }
 };

@@ -109,15 +109,15 @@ public:
 
   void set_reference(const std::vector<double> & target_value)
   {
-    std::shared_ptr<ControllerCommandMsg> msg = std::make_shared<ControllerCommandMsg>();
-    msg->dof_names = params_.dof_names;
-    msg->values.resize(msg->dof_names.size(), 0.0);
-    for (size_t i = 0; i < msg->dof_names.size(); ++i)
+    ControllerCommandMsg msg;
+    msg.dof_names = params_.dof_names;
+    msg.values.resize(msg.dof_names.size(), 0.0);
+    for (size_t i = 0; i < msg.dof_names.size(); ++i)
     {
-      msg->values[i] = target_value[i];
+      msg.values[i] = target_value[i];
     }
-    msg->values_dot.resize(msg->dof_names.size(), std::numeric_limits<double>::quiet_NaN());
-    input_ref_.writeFromNonRT(msg);
+    msg.values_dot.resize(msg.dof_names.size(), std::numeric_limits<double>::quiet_NaN());
+    input_ref_.set(msg);
   }
 };
 
@@ -145,6 +145,8 @@ public:
     service_caller_node_ = std::make_shared<rclcpp::Node>("service_caller");
     feedforward_service_client_ = service_caller_node_->create_client<ControllerModeSrvType>(
       "/test_pid_controller/set_feedforward_control");
+    command_publisher_ = command_publisher_node_->create_publisher<ControllerCommandMsg>(
+      "/test_pid_controller/reference", rclcpp::SystemDefaultsQoS());
   }
 
   static void TearDownTestCase() { rclcpp::shutdown(); }
@@ -157,9 +159,13 @@ protected:
     command_publisher_ = command_publisher_node_->create_publisher<ControllerCommandMsg>(
       "/" + controller_name + "/reference", rclcpp::SystemDefaultsQoS());
 
-    ASSERT_EQ(
-      controller_->init(controller_name, "", 0, "", controller_->define_custom_node_options()),
-      controller_interface::return_type::OK);
+    controller_interface::ControllerInterfaceParams params;
+    params.controller_name = controller_name;
+    params.robot_description = "";
+    params.update_rate = 0;
+    params.node_namespace = "";
+    params.node_options = controller_->define_custom_node_options();
+    ASSERT_EQ(controller_->init(params), controller_interface::return_type::OK);
 
     std::vector<hardware_interface::LoanedCommandInterface> command_ifs;
     command_itfs_.reserve(dof_names_.size());

@@ -139,7 +139,7 @@ protected:
   }
 
   /// \brief wait for the subscriber and publisher to completely setup
-  void waitForSetup()
+  void waitForSetup(rclcpp::Executor & executor)
   {
     constexpr std::chrono::seconds TIMEOUT{2};
     auto clock = cmd_vel_publisher_node_->get_clock();
@@ -150,7 +150,8 @@ protected:
       {
         FAIL();
       }
-      rclcpp::spin_some(cmd_vel_publisher_node_);
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
   }
 
@@ -224,7 +225,13 @@ protected:
     parameter_overrides.insert(parameter_overrides.end(), parameters.begin(), parameters.end());
     node_options.parameter_overrides(parameter_overrides);
 
-    return controller_->init(controller_name_, urdf_, 0, ns, node_options);
+    controller_interface::ControllerInterfaceParams params;
+    params.controller_name = controller_name_;
+    params.robot_description = urdf_;
+    params.update_rate = 0;
+    params.node_namespace = ns;
+    params.node_options = node_options;
+    return controller_->init(params);
   }
 
   std::vector<double> wheels_pos_states_ = {1, 1, 1, 1};

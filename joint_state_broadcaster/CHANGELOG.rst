@@ -2,6 +2,31 @@
 Changelog for package joint_state_broadcaster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.37.0 (2026-02-03)
+-------------------
+
+4.36.0 (2025-12-31)
+-------------------
+* Add parameter for deactivating dynamic_joint_states (backport `#2064 <https://github.com/ros-controls/ros2_controllers/issues/2064>`_) (`#2066 <https://github.com/ros-controls/ros2_controllers/issues/2066>`_)
+* Controller interface api update to ros2_controller packages (backport `#1973 <https://github.com/ros-controls/ros2_controllers/issues/1973>`_) (`#2068 <https://github.com/ros-controls/ros2_controllers/issues/2068>`_)
+* Contributors: mergify[bot]
+
+4.35.0 (2025-12-01)
+-------------------
+
+4.34.0 (2025-11-10)
+-------------------
+* Fix integer literal for size_t (backport `#1986 <https://github.com/ros-controls/ros2_controllers/issues/1986>`_) (`#1987 <https://github.com/ros-controls/ros2_controllers/issues/1987>`_)
+* Contributors: Christoph Fröhlich
+
+4.33.1 (2025-10-17)
+-------------------
+
+4.33.0 (2025-10-03)
+-------------------
+* Update API for realtime publisher (backport `#1830 <https://github.com/ros-controls/ros2_controllers/issues/1830>`_) (`#1944 <https://github.com/ros-controls/ros2_controllers/issues/1944>`_)
+* Contributors: mergify[bot]
+
 4.32.0 (2025-09-12)
 -------------------
 * Added frame_id to Joint State Broadcaster (backport `#1746 <https://github.com/ros-controls/ros2_controllers/issues/1746>`_) (`#1897 <https://github.com/ros-controls/ros2_controllers/issues/1897>`_)

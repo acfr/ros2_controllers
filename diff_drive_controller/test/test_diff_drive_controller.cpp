@@ -45,10 +45,6 @@ class TestableDiffDriveController : public diff_drive_controller::DiffDriveContr
 {
 public:
   using DiffDriveController::DiffDriveController;
-  std::shared_ptr<geometry_msgs::msg::TwistStamped> getLastReceivedTwist()
-  {
-    return *(received_velocity_msg_ptr_.readFromNonRT());
-  }
 
   /**
    * @brief wait_for_twist block until a new twist is received.
@@ -77,7 +73,13 @@ public:
   {
     return realtime_odometry_publisher_;
   }
-
+  // Declare these tests as friends so we can access odometry_message_
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_test_prefix_false_no_namespace);
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_no_namespace);
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_no_namespace);
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_test_prefix_false_set_namespace);
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_set_namespace);
+  FRIEND_TEST(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_set_namespace);
   // Declare these tests as friends so we can access controller_->reference_interfaces_
   FRIEND_TEST(TestDiffDriveController, chainable_controller_unchained_mode);
   FRIEND_TEST(TestDiffDriveController, chainable_controller_chained_mode);
@@ -134,7 +136,7 @@ protected:
   }
 
   /// \brief wait for the subscriber and publisher to completely setup
-  void waitForSetup()
+  void waitForSetup(rclcpp::Executor & executor)
   {
     constexpr std::chrono::seconds TIMEOUT{2};
     auto clock = pub_node->get_clock();
@@ -145,7 +147,8 @@ protected:
       {
         FAIL();
       }
-      rclcpp::spin_some(pub_node);
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
   }
 
@@ -203,8 +206,13 @@ protected:
 
     parameter_overrides.insert(parameter_overrides.end(), parameters.begin(), parameters.end());
     node_options.parameter_overrides(parameter_overrides);
-
-    return controller_->init(controller_name, urdf_, 0, ns, node_options);
+    controller_interface::ControllerInterfaceParams params;
+    params.controller_name = controller_name;
+    params.robot_description = urdf_;
+    params.update_rate = 0;
+    params.node_namespace = ns;
+    params.node_options = node_options;
+    return controller_->init(params);
   }
 
   std::string controller_name;
@@ -234,8 +242,13 @@ protected:
 
 TEST_F(TestDiffDriveController, init_fails_without_parameters)
 {
-  const auto ret =
-    controller_->init(controller_name, urdf_, 0, "", controller_->define_custom_node_options());
+  controller_interface::ControllerInterfaceParams params;
+  params.controller_name = controller_name;
+  params.robot_description = urdf_;
+  params.update_rate = 0;
+  params.node_namespace = "";
+  params.node_options = controller_->define_custom_node_options();
+  const auto ret = controller_->init(params);
   ASSERT_EQ(ret, controller_interface::return_type::ERROR);
 }
 
@@ -308,12 +321,9 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_false_no_names
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
   /* tf_frame_prefix_enable is false so no modifications to the frame id's */
-  ASSERT_EQ(test_odom_frame_id, odom_id);
-  ASSERT_EQ(test_base_frame_id, base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, base_link_id);
 }
 
 TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_no_namespace)
@@ -333,14 +343,10 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_no_namesp
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
-
   /* tf_frame_prefix_enable is true and frame_prefix is not blank so should be appended to the frame
    * id's */
-  ASSERT_EQ(test_odom_frame_id, frame_prefix + "/" + odom_id);
-  ASSERT_EQ(test_base_frame_id, frame_prefix + "/" + base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, frame_prefix + "/" + odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, frame_prefix + "/" + base_link_id);
 }
 
 TEST_F(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_no_namespace)
@@ -360,13 +366,10 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_no_names
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
   /* tf_frame_prefix_enable is true but frame_prefix is blank so should not be appended to the frame
    * id's */
-  ASSERT_EQ(test_odom_frame_id, odom_id);
-  ASSERT_EQ(test_base_frame_id, base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, base_link_id);
 }
 
 TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_false_set_namespace)
@@ -389,12 +392,9 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_false_set_name
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
   /* tf_frame_prefix_enable is false so no modifications to the frame id's */
-  ASSERT_EQ(test_odom_frame_id, odom_id);
-  ASSERT_EQ(test_base_frame_id, base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, base_link_id);
 }
 
 TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_set_namespace)
@@ -417,14 +417,10 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_test_prefix_true_set_names
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
-
   /* tf_frame_prefix_enable is true and frame_prefix is not blank so should be appended to the frame
    * id's instead of the namespace*/
-  ASSERT_EQ(test_odom_frame_id, frame_prefix + "/" + odom_id);
-  ASSERT_EQ(test_base_frame_id, frame_prefix + "/" + base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, frame_prefix + "/" + odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, frame_prefix + "/" + base_link_id);
 }
 
 TEST_F(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_set_namespace)
@@ -446,14 +442,11 @@ TEST_F(TestDiffDriveController, configure_succeeds_tf_blank_prefix_true_set_name
 
   ASSERT_EQ(controller_->on_configure(rclcpp_lifecycle::State()), CallbackReturn::SUCCESS);
 
-  auto odometry_message = controller_->get_rt_odom_publisher()->msg_;
-  std::string test_odom_frame_id = odometry_message.header.frame_id;
-  std::string test_base_frame_id = odometry_message.child_frame_id;
   std::string ns_prefix = test_namespace.erase(0, 1) + "/";
   /* tf_frame_prefix_enable is true but frame_prefix is blank so namespace should be appended to the
    * frame id's */
-  ASSERT_EQ(test_odom_frame_id, ns_prefix + odom_id);
-  ASSERT_EQ(test_base_frame_id, ns_prefix + base_link_id);
+  ASSERT_EQ(controller_->odometry_message_.header.frame_id, ns_prefix + odom_id);
+  ASSERT_EQ(controller_->odometry_message_.child_frame_id, ns_prefix + base_link_id);
 }
 
 TEST_F(TestDiffDriveController, activate_fails_without_resources_assigned)
@@ -536,7 +529,7 @@ TEST_F(TestDiffDriveController, test_speed_limiter)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // send msg
   publish(0.0, 0.0);
@@ -777,7 +770,7 @@ TEST_F(TestDiffDriveController, cleanup)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // send msg
   const double linear = 1.0;
@@ -898,7 +891,7 @@ TEST_F(TestDiffDriveController, chainable_controller_unchained_mode)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   // (Note: reference_interfaces_ is protected, but this is
@@ -994,7 +987,7 @@ TEST_F(TestDiffDriveController, chainable_controller_chained_mode)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   for (const auto & interface : controller_->reference_interfaces_)
@@ -1098,7 +1091,7 @@ TEST_F(TestDiffDriveController, deactivate_then_activate)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // Reference interfaces should be NaN on initialization
   // (Note: reference_interfaces_ is protected, but this is
@@ -1142,7 +1135,7 @@ TEST_F(TestDiffDriveController, deactivate_then_activate)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // (Note: reference_interfaces_ is protected, but this is
   // a FRIEND_TEST so we can use it)
@@ -1196,7 +1189,7 @@ TEST_F(TestDiffDriveController, command_with_zero_timestamp_is_accepted_with_war
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
+  waitForSetup(executor);
 
   // published command message with zero timestamp sets the command interfaces to the correct values
   const double linear = 1.0;
