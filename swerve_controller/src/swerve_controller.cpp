@@ -53,7 +53,13 @@ using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
 using lifecycle_msgs::msg::State;
 
-SwerveController::SwerveController() : controller_interface::ChainableControllerInterface() {}
+SwerveController::SwerveController() : controller_interface::ChainableControllerInterface()
+{
+  // Initialize interface counts with default values
+  nr_state_itfs_ = NR_STATE_ITFS;
+  nr_cmd_itfs_ = NR_CMD_ITFS;
+  nr_ref_itfs_ = NR_REF_ITFS;
+}
 
 controller_interface::CallbackReturn SwerveController::on_init()
 {
@@ -496,11 +502,10 @@ controller_interface::CallbackReturn SwerveController::on_deactivate(
 {
   for (size_t i = 0; i < nr_cmd_itfs_; ++i)
   {
-    if(!command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN()))
+    if (!command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN()))
     {
       RCLCPP_WARN(
-        get_node()->get_logger(),
-        "Failed to set command interface %s to NaN on deactivation.",
+        get_node()->get_logger(), "Failed to set command interface %s to NaN on deactivation.",
         command_interfaces_[i].get_name().c_str());
     }
   }
@@ -702,6 +707,8 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 
     find_icrs(steer_commands);
 
+    steer_assist(drive_commands, steer_commands);
+
     update_command_interfaces(drive_commands, steer_commands);
   }
   else
@@ -783,6 +790,32 @@ controller_interface::return_type SwerveController::update_and_write_commands(
   reference_interfaces_[2] = std::numeric_limits<double>::quiet_NaN();
 
   return controller_interface::return_type::OK;
+}
+
+void SwerveController::steer_assist(
+  const std::vector<double> & drive_commands, std::vector<double> & steer_commands)
+{
+  // steer assist velocity to help the steering motors turn more efficiently
+  for (std::size_t i = 0; i < steer_commands.size(); i++)
+  {
+    double drive_comp_command =
+      (drive_commands[i] +
+       state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()) /
+         2.0);
+
+    double steer_assist_drive_command =
+      drive_comp_command * drive_to_steer_offset_ * wheel_params_.radius;
+
+    // subtract the steer assist component from the drive command if on the left side
+    if (i % 2 == 0)
+    {
+      drive_commands[i] -= steer_assist_drive_command;
+    }
+    else
+    {
+      drive_commands[i] += steer_assist_drive_command;
+    }
+  }
 }
 
 void SwerveController::check_steering_limits(std::vector<DriveModuleDesiredValues> & result)
@@ -905,11 +938,12 @@ void SwerveController::brake()
   // Drive joins come to complete stop
   for (size_t i = 0; i < params_.drive_joints_names.size(); i++)
   {
-    if(!command_interfaces_[i].set_value(0.0))
+    if (!command_interfaces_[i].set_value(0.0))
     {
       RCLCPP_WARN(
         get_node()->get_logger(),
-        "Failed to set drive joint '%s' to 0.0 velocity, check if the joint is configured correctly.",
+        "Failed to set drive joint '%s' to 0.0 velocity, check if the joint is configured "
+        "correctly.",
         params_.drive_joints_names[i].c_str());
     }
   }
@@ -921,11 +955,12 @@ void SwerveController::brake()
   {
     double current_position = state_interfaces_[i + no_of_steer_joints].get_optional().value_or(
       std::numeric_limits<double>::quiet_NaN());
-    if(!command_interfaces_[i + no_of_steer_joints].set_value(current_position))
+    if (!command_interfaces_[i + no_of_steer_joints].set_value(current_position))
     {
       RCLCPP_WARN(
-        get_node()->get_logger(), 
-        "Failed to set steer joint '%s' to current position %.2f, check if the joint is configured ",
+        get_node()->get_logger(),
+        "Failed to set steer joint '%s' to current position %.2f, check if the joint is "
+        "configured ",
         params_.steer_joints_names[i].c_str(), current_position);
     }
   }
@@ -939,19 +974,21 @@ void SwerveController::update_command_interfaces(
     // TODO check join limits before writing to them here - SANITY CHECK
 
     // then write
-    if(!command_interfaces_[i].set_value(drive_values[i]))
+    if (!command_interfaces_[i].set_value(drive_values[i]))
     {
       RCLCPP_WARN(
         get_node()->get_logger(),
-        "Failed to set drive joint '%s' to %.2f velocity, check if the joint is configured correctly.",
+        "Failed to set drive joint '%s' to %.2f velocity, check if the joint is configured "
+        "correctly.",
         drive_joints_names_[i].c_str(), drive_values[i]);
     }
 
-    if(!command_interfaces_[i + steer_joints_names_.size()].set_value(steer_values[i]))
+    if (!command_interfaces_[i + steer_joints_names_.size()].set_value(steer_values[i]))
     {
       RCLCPP_WARN(
         get_node()->get_logger(),
-        "Failed to set steer joint '%s' to %.2f position, check if the joint is configured correctly.",
+        "Failed to set steer joint '%s' to %.2f position, check if the joint is configured "
+        "correctly.",
         steer_joints_names_[i].c_str(), steer_values[i]);
     }
   }
@@ -1053,7 +1090,8 @@ void SwerveController::find_icrs(std::vector<double> angles)
   for (std::size_t i = 0; i < angles.size(); i++)
   {
     icr_line.p1 = {wheel_centres[i].x(), wheel_centres[i].y(), 0.0};
-    icr_line.p2 = {-sin(angles[i]) + wheel_centres[i].x(), cos(angles[i]) + wheel_centres[i].y(), 0.0};
+    icr_line.p2 = {
+      -sin(angles[i]) + wheel_centres[i].x(), cos(angles[i]) + wheel_centres[i].y(), 0.0};
 
     icr_lines.push_back(icr_line);
   }
@@ -1168,7 +1206,6 @@ double SwerveController::normalise_angle(float angle)
   if (angle > M_PI) angle -= 2 * M_PI;
 
   return angle;
-
 }
 
 double SwerveController::difference_between_angles(float a, float b)

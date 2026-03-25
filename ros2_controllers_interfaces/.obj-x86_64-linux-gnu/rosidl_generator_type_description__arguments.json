@@ -1,0 +1,12 @@
+{
+  "package_name": "ros2_controllers_interfaces",
+  "output_dir": "/home/jerome/gh_ws/src/ros2_controllers/ros2_controllers_interfaces/.obj-x86_64-linux-gnu/rosidl_generator_type_description/ros2_controllers_interfaces",
+  "idl_tuples": [
+    "/home/jerome/gh_ws/src/ros2_controllers/ros2_controllers_interfaces/.obj-x86_64-linux-gnu/rosidl_adapter/ros2_controllers_interfaces:msg/SwerveControllerStatus.idl"
+  ],
+  "include_paths": [
+    "builtin_interfaces:/opt/ros/jazzy/share/builtin_interfaces",
+    "std_msgs:/opt/ros/jazzy/share/std_msgs",
+    "geometry_msgs:/opt/ros/jazzy/share/geometry_msgs"
+  ]
+}

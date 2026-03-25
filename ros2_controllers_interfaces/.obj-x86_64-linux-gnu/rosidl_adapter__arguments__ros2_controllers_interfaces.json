@@ -1,0 +1,6 @@
+{
+  "package_name": "ros2_controllers_interfaces",
+  "non_idl_tuples": [
+    "/home/jerome/gh_ws/src/ros2_controllers/ros2_controllers_interfaces:msg/SwerveControllerStatus.msg"
+  ]
+}

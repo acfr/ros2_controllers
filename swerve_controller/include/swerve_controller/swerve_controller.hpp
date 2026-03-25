@@ -285,6 +285,8 @@ protected:
   std::vector<Eigen::Vector3d> find_wheel_centre_coords();
   void find_icrs(std::vector<double> angles);
 
+  void steer_assist(std::vector<double> & drive_commands, std::vector<double> & steer_commands);
+  
   // callback for topic interface
   void reference_callback(const std::shared_ptr<ControllerTwistReferenceMsg> msg);
 
