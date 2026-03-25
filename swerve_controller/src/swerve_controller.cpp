@@ -793,18 +793,18 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 }
 
 void SwerveController::steer_assist(
-  const std::vector<double> & drive_commands, std::vector<double> & steer_commands)
+  std::vector<double> & drive_commands, std::vector<double> & steer_commands)
 {
   // steer assist velocity to help the steering motors turn more efficiently
   for (std::size_t i = 0; i < steer_commands.size(); i++)
   {
-    double drive_comp_command =
-      (drive_commands[i] +
-       state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN()) /
-         2.0);
+    double actual_velocity = state_interfaces_[i].get_optional().value_or(
+      std::numeric_limits<double>::quiet_NaN());
+    
+    double drive_comp_command = (drive_commands[i] + actual_velocity) / 2.0;
 
     double steer_assist_drive_command =
-      drive_comp_command * drive_to_steer_offset_ * wheel_params_.radius;
+      drive_comp_command * wheel_params_.drive_to_steer_offset * wheel_params_.radius;
 
     // subtract the steer assist component from the drive command if on the left side
     if (i % 2 == 0)
