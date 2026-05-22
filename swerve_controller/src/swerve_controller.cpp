@@ -500,16 +500,24 @@ controller_interface::CallbackReturn SwerveController::on_activate(const rclcpp_
 controller_interface::CallbackReturn SwerveController::on_deactivate(
   const rclcpp_lifecycle::State &)
 {
-  for (size_t i = 0; i < nr_cmd_itfs_; ++i)
+  // Halt all drive wheels
+  for (size_t i = 0; i < params_.drive_joints_names.size(); i++)
   {
-    if (!command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN()))
-    {
-      RCLCPP_WARN(
-        get_node()->get_logger(), "Failed to set command interface %s to NaN on deactivation.",
-        command_interfaces_[i].get_name().c_str());
-    }
+    command_interfaces_[i].set_value(0.0);
   }
-
+  // Set all steer joints to zero position
+  for (size_t i = 0; i < params_.steer_joints_names.size(); i++)
+  {
+    command_interfaces_[i + params_.drive_joints_names.size()].set_value(0.0);
+  }
+  // Reset reference interfaces to zero to prevent kinematics on the next update() call
+  reference_interfaces_.assign(reference_interfaces_.size(), 0.0);
+  // Clear stored reference to NaN so stale commands are not replayed on resume
+  std::shared_ptr<ControllerTwistReferenceMsg> msg =
+    std::make_shared<ControllerTwistReferenceMsg>();
+  reset_controller_reference_msg(msg, get_node());
+  input_ref_.writeFromNonRT(msg);
+  subscriber_is_active_ = false;
   return controller_interface::CallbackReturn::SUCCESS;
 }
 

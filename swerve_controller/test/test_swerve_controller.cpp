@@ -115,7 +115,7 @@ protected:
   }
 
   /// \brief wait for the subscriber and publisher to completely setup
-  void waitForSetup()
+  void waitForSetup(rclcpp::Executor & executor)
   {
     constexpr std::chrono::seconds TIMEOUT{2};
     auto clock = command_publisher_node_->get_clock();
@@ -124,9 +124,12 @@ protected:
     {
       if ((clock->now() - start) > TIMEOUT)
       {
-        FAIL();
+        FAIL() << "Timeout waiting for subscriber to connect";
+        return;  // FAIL() does not exit the function; return to prevent infinite loop
       }
+      executor.spin_some();
       rclcpp::spin_some(command_publisher_node_);
+      std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
   }
 
@@ -286,7 +289,8 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
     InitController(
       drive_joints_names, steer_joints_names,
       {rclcpp::Parameter("wheel_radius", 0.2), rclcpp::Parameter("wheelbase", 1.8),
-       rclcpp::Parameter("wheel_track", 2.3), rclcpp::Parameter("drive_to_steer_offset", 0.0)}),
+       rclcpp::Parameter("wheel_track", 2.3), rclcpp::Parameter("drive_to_steer_offset", 0.0),
+       rclcpp::Parameter("use_stamped_vel", true)}),
     controller_interface::return_type::OK);
 
   rclcpp::executors::SingleThreadedExecutor executor;
@@ -294,6 +298,10 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
 
   auto state = controller_->get_node()->configure();
   assignResources();
+  // Export reference interfaces so that reference_interfaces_ vector is populated
+  // (normally done by the controller manager, but required in unit tests)
+  auto ref_interfaces = controller_->export_reference_interfaces();
+  ASSERT_EQ(ref_interfaces.size(), 3u);
 
   ASSERT_EQ(State::PRIMARY_STATE_INACTIVE, state.id());
   EXPECT_EQ(0.00, fl_drive_cmd_.get_optional().value());
@@ -308,8 +316,8 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
   state = controller_->get_node()->activate();
   ASSERT_EQ(State::PRIMARY_STATE_ACTIVE, state.id());
 
-  waitForSetup();
-  
+  waitForSetup(executor);
+
   // send msg
   const double linear_x = 1.0;
   const double linear_y = 1.0;
@@ -322,7 +330,10 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
     controller_->update(rclcpp::Time(0, 0, RCL_ROS_TIME), rclcpp::Duration::from_seconds(0.01)),
     controller_interface::return_type::OK);
 
-  const double expected_wheel_vel = std::sqrt(2.0) / 0.2;
+  // The controller normalizes wheel speeds to max_drive_speed (1.0 m/s).
+  // With linear_x=1.0, linear_y=1.0, the raw wheel speed is sqrt(2) ≈ 1.414 m/s > 1.0 m/s,
+  // so all speeds are scaled down proportionally: effective_speed = 1.0 m/s.
+  const double expected_wheel_vel = 1.0 / 0.2;  // max_drive_speed / wheel_radius
   EXPECT_NEAR(expected_wheel_vel, fl_drive_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_vel, fr_drive_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_vel, rl_drive_cmd_.get_optional().value(), 0.01);

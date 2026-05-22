@@ -59,7 +59,7 @@ const std::string valid_swerve_urdf =
     <child link="fl_steer_link" />
     <origin xyz="0.9 1.15 0" rpy="0 0 0" />
     <axis xyz="0 0 1" />
-    <limit effort="1000.0" lower="${-M_PI}" upper="${M_PI}" velocity="0.5" />
+    <limit effort="1000.0" lower="-3.14159265359" upper="3.14159265359" velocity="0.5" />
   </joint>
   <link name="fl_steer_link">
     <visual>
@@ -116,7 +116,7 @@ const std::string valid_swerve_urdf =
     <child link="fr_steer_link" />
     <origin xyz="0.9 -1.15 0" rpy="0 0 0" />
     <axis xyz="0 0 1" />
-    <limit effort="1000.0" lower="${-M_PI}" upper="${M_PI}" velocity="0.5" />
+    <limit effort="1000.0" lower="-3.14159265359" upper="3.14159265359" velocity="0.5" />
   </joint>
   <link name="fr_steer_link">
     <visual>
@@ -173,7 +173,7 @@ const std::string valid_swerve_urdf =
     <child link="rl_steer_link" />
     <origin xyz="-0.9 1.15 0" rpy="0 0 0" />
     <axis xyz="0 0 1" />
-    <limit effort="1000.0" lower="${-M_PI}" upper="${M_PI}" velocity="0.5" />
+    <limit effort="1000.0" lower="-3.14159265359" upper="3.14159265359" velocity="0.5" />
   </joint>
   <link name="rl_steer_link">
     <visual>
@@ -230,7 +230,7 @@ const std::string valid_swerve_urdf =
     <child link="rr_steer_link" />
     <origin xyz="-0.9 -1.15 0" rpy="0 0 0" />
     <axis xyz="0 0 1" />
-    <limit effort="1000.0" lower="${-M_PI}" upper="${M_PI}" velocity="0.5" />
+    <limit effort="1000.0" lower="-3.14159265359" upper="3.14159265359" velocity="0.5" />
   </joint>
   <link name="rr_steer_link">
     <visual>
@@ -288,6 +288,7 @@ const std::string valid_swerve_urdf =
     </hardware>
     <joint name="fl_drive_joint">
       <command_interface name="velocity"/>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
@@ -297,6 +298,7 @@ const std::string valid_swerve_urdf =
     </hardware>
     <joint name="fr_drive_joint">
       <command_interface name="velocity"/>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
@@ -306,6 +308,7 @@ const std::string valid_swerve_urdf =
     </hardware>
     <joint name="rl_drive_joint">
       <command_interface name="velocity"/>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
@@ -315,6 +318,7 @@ const std::string valid_swerve_urdf =
     </hardware>
     <joint name="rr_drive_joint">
       <command_interface name="velocity"/>
+      <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
@@ -325,6 +329,7 @@ const std::string valid_swerve_urdf =
     <joint name="fl_steer_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
+      <state_interface name="velocity"/>
     </joint>
   </ros2_control>
   <ros2_control name="TestFrSteerActuatorHardware" type="actuator">
@@ -334,6 +339,7 @@ const std::string valid_swerve_urdf =
     <joint name="fr_steer_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
+      <state_interface name="velocity"/>
     </joint>
   </ros2_control>
   <ros2_control name="TestRlSteerActuatorHardware" type="actuator">
@@ -343,6 +349,7 @@ const std::string valid_swerve_urdf =
     <joint name="rl_steer_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
+      <state_interface name="velocity"/>
     </joint>
   </ros2_control>
   <ros2_control name="TestRrSteerActuatorHardware" type="actuator">
@@ -352,6 +359,7 @@ const std::string valid_swerve_urdf =
     <joint name="rr_steer_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
+      <state_interface name="velocity"/>
     </joint>
   </ros2_control>
 </robot>
@@ -379,7 +387,6 @@ int main(int argc, char ** argv)
   ::testing::InitGoogleTest(&argc, argv);
   rclcpp::init(argc, argv);
   int result = RUN_ALL_TESTS();
-  rclcpp::shutdown();
   rclcpp::shutdown();
   return result;
 }
