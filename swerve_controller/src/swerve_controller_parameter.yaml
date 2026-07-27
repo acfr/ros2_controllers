@@ -156,6 +156,12 @@ swerve_controller:
       read_only: false,
     }
 
+  wrap_steering_commands: {
+    type: bool,
+    default_value: true,
+    description: "Command steer joints relative to their current continuous position instead of the wrapped -pi..pi angle, to avoid unnecessary near-2pi rotations."
+  }
+
   publish_limited_velocity:
     {
       type: bool,
