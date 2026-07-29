@@ -39,86 +39,64 @@ namespace swerve_controller
   {
   }
 
-  bool Odometry::update_odometry(const double &fl_speed, const double &fr_speed, const double &rr_speed,
-                                 const double &rl_speed, const double &fl_steering, const double &fr_steering,
-                                 const double &rr_steering, const double &rl_steering, const double dt)
+  bool Odometry::update_odometry(const std::vector<Eigen::Vector2d> & drive_speed_vector,
+                                  const std::vector<Eigen::Vector2d> & wheel_centres,
+                                  const double dt)
   {
-    // Compute velocity vectors in X-Y for each wheel
-    const double fl_speed_x = sin(fl_steering) * fl_speed * wheel_radius_;
-    const double fl_speed_y = cos(fl_steering) * fl_speed * wheel_radius_;
-    const double fr_speed_x = sin(fr_steering) * fr_speed * wheel_radius_;
-    const double fr_speed_y = cos(fr_steering) * fr_speed * wheel_radius_;
-    const double rr_speed_x = sin(rr_steering) * rr_speed * wheel_radius_;
-    const double rr_speed_y = cos(rr_steering) * rr_speed * wheel_radius_;
-    const double rl_speed_x = sin(rl_steering) * rl_speed * wheel_radius_;
-    const double rl_speed_y = cos(rl_steering) * rl_speed * wheel_radius_;
+    const size_t num_wheels = drive_speed_vector.size();
 
-    // Compute robot velocities components
-    const double a = (rl_speed_x + rr_speed_x) / 2.0;
-    const double b = (fr_speed_x + fl_speed_x) / 2.0;
-    const double c = (fr_speed_y + rl_speed_y) / 2.0;
-    const double d = (fl_speed_y + rr_speed_y) / 2.0;
+    if (num_wheels == 0 || num_wheels != wheel_centres.size())
+    {
+      RCLCPP_ERROR(
+          rclcpp::get_logger("swerve_controller_odometry"),
+          "update_odometry: drive_speed_vector (%zu) and wheel_centres (%zu) must be the "
+          "same non-zero size",
+          num_wheels, wheel_centres.size());
+      return false;
+    }
 
-    // Average angular speed
-    const double angular_1 = (b - a) / wheelbase_;
-    const double angular_2 = (c - d) / steering_track_;
-    angular_ = (angular_1 + angular_2) / 2.0;
+    // Each wheel's measured velocity vector v_i (expressed in the base frame) is related
+    // to the robot's body-frame velocity [vx, vy] and yaw rate omega by the rigid-body
+    // constraint:
+    //
+    //   v_i = [vx, vy] + omega * [-y_i, x_i]
+    //
+    // where (x_i, y_i) is that wheel's centre position relative to the robot origin.
+    // Stacking every wheel gives an overdetermined linear system A * [vx, vy, omega]^T = b,
+    // which is solved in a least-squares sense so that noisy/redundant wheel measurements
+    // are fused into a single best-fit body velocity.
+    Eigen::MatrixXd A(2 * num_wheels, 3);
+    Eigen::VectorXd b(2 * num_wheels);
 
-    // Average linear speed
-    const double linear_x_1 = angular_ * (wheelbase_ / 2.0) + c;
-    const double linear_x_2 = -angular_ * (wheelbase_ / 2.0) + d;
-    const double linear_y_1 = angular_ * (steering_track_ / 2.0) + a;
-    const double linear_y_2 = -angular_ * (steering_track_ / 2.0) + b;
+    for (size_t i = 0; i < num_wheels; ++i)
+    {
+      const double x_i = wheel_centres[i].x();
+      const double y_i = wheel_centres[i].y();
 
-    linear_x_ = (linear_x_1 + linear_x_2) / 2.0;
-    linear_y_ = (linear_y_1 + linear_y_2) / 2.0;
+      A(2 * i, 0) = 1.0;
+      A(2 * i, 1) = 0.0;
+      A(2 * i, 2) = -y_i;
+      b(2 * i) = drive_speed_vector[i].x();
+
+      A(2 * i + 1, 0) = 0.0;
+      A(2 * i + 1, 1) = 1.0;
+      A(2 * i + 1, 2) = x_i;
+      b(2 * i + 1) = drive_speed_vector[i].y();
+    }
+
+    // JacobiSVD handles rank-deficient cases gracefully (e.g. a single wheel, or wheel
+    // centres that are collinear and therefore can't fully observe rotation).
+    const Eigen::VectorXd solution = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
+
+    linear_x_ = solution(0);
+    linear_y_ = solution(1);
+    angular_ = solution(2);
 
     integrateXY(linear_x_ * dt, linear_y_ * dt, angular_ * dt);
 
     return true;
   }
 
-  bool Odometry::update_from_position(const std::vector<double> drive_joints_values,
-                                      const std::vector<double> steer_joints_values, const double dt)
-  {
-    // Get current position and velocities
-    const double fl_speed = drive_joints_values[0] / dt;
-    const double fr_speed = drive_joints_values[1] / dt;
-    const double rl_speed = drive_joints_values[2] / dt;
-    const double rr_speed = drive_joints_values[3] / dt;
-
-    if (std::isnan(fl_speed) || std::isnan(fr_speed) || std::isnan(rl_speed) || std::isnan(rr_speed))
-      return false;
-
-    const double fl_steering = steer_joints_values[0];
-    const double fr_steering = steer_joints_values[1];
-    const double rl_steering = steer_joints_values[2];
-    const double rr_steering = steer_joints_values[3];
-
-    if (std::isnan(fl_steering) || std::isnan(fr_steering) || std::isnan(rl_steering) || std::isnan(rr_steering))
-      return false;
-
-    // Estimate linear and angular velocity using joint information
-    return update_odometry(fl_speed, fr_speed, rl_speed, rr_speed, fl_steering, fr_steering, rl_steering, rr_steering, dt);
-  }
-
-  bool Odometry::update_from_velocity(const std::vector<double> drive_joints_values,
-                                      const std::vector<double> steer_joints_values, const double dt)
-  {
-    // Get current position and velocities
-    const double fl_speed = drive_joints_values[0];
-    const double fr_speed = drive_joints_values[1];
-    const double rl_speed = drive_joints_values[2];
-    const double rr_speed = drive_joints_values[3];
-
-    const double fl_steering = steer_joints_values[0];
-    const double fr_steering = steer_joints_values[1];
-    const double rl_steering = steer_joints_values[2];
-    const double rr_steering = steer_joints_values[3];
-
-    // Estimate linear and angular velocity using joint information
-    return update_odometry(fl_speed, fr_speed, rl_speed, rr_speed, fl_steering, fr_steering, rl_steering, rr_steering, dt);
-  }
 
   void Odometry::update_open_loop(double linear_x, double linear_y, const double angular, const double dt)
   {

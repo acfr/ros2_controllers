@@ -283,7 +283,10 @@ protected:
 
   void publish_icrs(std::vector<std::vector<double>> icr_list);
   std::vector<Eigen::Vector3d> find_steer_axis_centre_coords();
-  std::vector<Eigen::Isometry2d> find_wheel_centre_pose();
+  std::vector<Eigen::Vector2d> find_wheel_centres();
+  std::vector<Eigen::Vector2d> get_wheel_velocities(double scale);
+
+  // cached steer axis centres, set in configure_odometry
   std::vector<Eigen::Vector3d> steer_axis_centres_;
   
   void find_icrs(std::vector<double> angles);
