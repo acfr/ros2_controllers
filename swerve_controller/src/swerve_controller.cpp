@@ -314,6 +314,8 @@ controller_interface::CallbackReturn SwerveController::configure_odometry()
     wheel_params_.radius, wheel_params_.wheelbase, wheel_params_.wheel_track,
     wheel_params_.drive_to_steer_offset);
 
+  steer_axis_centres_ = find_steer_axis_centre_coords();
+
   set_interface_numbers(NR_STATE_ITFS, NR_CMD_ITFS, NR_REF_ITFS);
 
   RCLCPP_INFO(get_node()->get_logger(), "Swerve Drive odometry configuration successful");
@@ -331,6 +333,7 @@ bool SwerveController::update_odometry(const rclcpp::Duration & period)
   {
     if (check_joint_states_are_valid())
     {
+
       if (params_.position_feedback)
       {
         // Estimate linear and angular velocity using joint information
@@ -1071,7 +1074,7 @@ bool SwerveController::check_joint_states_are_valid()
   return false;
 }
 
-std::vector<Eigen::Vector3d> SwerveController::find_wheel_centre_coords()
+std::vector<Eigen::Vector3d> SwerveController::find_steer_axis_centre_coords()
 {
   Eigen::Vector3d p1 = {1, 1, 0};
   Eigen::Vector3d p2 = {1, -1, 0};
@@ -1083,32 +1086,63 @@ std::vector<Eigen::Vector3d> SwerveController::find_wheel_centre_coords()
   for (std::size_t i = 0; i < centres.size(); i++)
   {
     // x is vertical
-    double wheel_centre_x = centres[i].x() * wheel_params_.wheelbase / 2;
+    double steer_axis_centre_x = centres[i].x() * wheel_params_.wheelbase / 2;
 
     // y is horizontal
     const double steering_track =
       wheel_params_.wheel_track - 2 * wheel_params_.drive_to_steer_offset;
 
-    double wheel_centre_y = centres[i].y() * steering_track / 2;
+    double steer_axis_centre_y = centres[i].y() * steering_track / 2;
 
-    centres[i] = {wheel_centre_x, wheel_centre_y, wheel_params_.radius};
+    centres[i] = {steer_axis_centre_x, steer_axis_centre_y, wheel_params_.radius};
   }
 
   return centres;
 }
 
+std::vector<Eigen::Isometry2d> SwerveController::find_wheel_centre_pose()
+{
+  std::vector<Eigen::Isometry2d> wheel_centre_poses;
+
+  if (steer_joints_values_.size() != steer_axis_centres_.size())
+  {
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "find_wheel_centre_pose: steer_joints_values_ not yet populated, returning empty result");
+    return wheel_centre_poses;
+  }
+
+  wheel_centre_poses.reserve(steer_axis_centres_.size());
+
+  for (std::size_t i = 0; i < steer_axis_centres_.size(); i++)
+  {
+    const double steering_angle = steer_joints_values_[i];
+
+    const double wheel_centre_x =
+      steer_axis_centres_[i].x() + wheel_params_.drive_to_steer_offset * cos(steering_angle);
+    const double wheel_centre_y =
+      steer_axis_centres_[i].y() + wheel_params_.drive_to_steer_offset * sin(steering_angle);
+
+    Eigen::Isometry2d pose =
+      Eigen::Translation2d(wheel_centre_x, wheel_centre_y) * Eigen::Rotation2Dd(steering_angle);
+
+    wheel_centre_poses.push_back(pose);
+  }
+
+  return wheel_centre_poses;
+}
+
 void SwerveController::find_icrs(std::vector<double> angles)
 {
-  std::vector<Eigen::Vector3d> wheel_centres = find_wheel_centre_coords();
-
   Line icr_line;
   std::vector<Line> icr_lines;
 
   for (std::size_t i = 0; i < angles.size(); i++)
   {
-    icr_line.p1 = {wheel_centres[i].x(), wheel_centres[i].y(), 0.0};
+    icr_line.p1 = {steer_axis_centres_[i].x(), steer_axis_centres_[i].y(), 0.0};
     icr_line.p2 = {
-      -sin(angles[i]) + wheel_centres[i].x(), cos(angles[i]) + wheel_centres[i].y(), 0.0};
+      -sin(angles[i]) + steer_axis_centres_[i].x(), cos(angles[i]) + steer_axis_centres_[i].y(),
+      0.0};
 
     icr_lines.push_back(icr_line);
   }
