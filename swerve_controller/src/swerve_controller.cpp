@@ -694,6 +694,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     }
 
     std::vector<DriveModuleDesiredValues> result;
+    std::vector<double> current_steering_positions;
     for (std::size_t i = 0; i < forward_states.size(); i++)
     {
       double current_velocity =
@@ -701,6 +702,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       double current_steering =
         state_interfaces_[i + forward_states.size()].get_optional().value_or(
           std::numeric_limits<double>::quiet_NaN());
+      current_steering_positions.push_back(current_steering);
       result.push_back(select_best_state(
         forward_states[i], reverse_states[i], current_velocity, current_steering));
     }
@@ -711,7 +713,13 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     {
       // converting from m/s to rotational velocity rads/sec
       drive_commands.push_back(result[i].drive_velocity / wheel_params_.radius);
-      steer_commands.push_back(result[i].steering_angle);
+      double steering_command = result[i].steering_angle;
+      if (!params_.wrap_steering_commands)
+      {
+        steering_command = current_steering_positions[i] +
+          difference_between_angles(current_steering_positions[i], steering_command);
+      }
+      steer_commands.push_back(steering_command);
     }
 
     find_icrs(steer_commands);
