@@ -72,16 +72,21 @@ namespace swerve_controller
     {
       const double x_i = wheel_centres[i].x();
       const double y_i = wheel_centres[i].y();
+      const double dx_i = drive_speed_vector[i].x();
+      const double dy_i = drive_speed_vector[i].y();
+
+      if (std::isnan(x_i) || std::isnan(y_i) || std::isnan(dx_i) || std::isnan(dy_i))
+        return false;
 
       A(2 * i, 0) = 1.0;
       A(2 * i, 1) = 0.0;
       A(2 * i, 2) = -y_i;
-      b(2 * i) = drive_speed_vector[i].x();
+      b(2 * i) = dx_i;
 
       A(2 * i + 1, 0) = 0.0;
       A(2 * i + 1, 1) = 1.0;
       A(2 * i + 1, 2) = x_i;
-      b(2 * i + 1) = drive_speed_vector[i].y();
+      b(2 * i + 1) = dy_i;
     }
 
     // JacobiSVD handles rank-deficient cases gracefully (e.g. a single wheel, or wheel
@@ -91,6 +96,9 @@ namespace swerve_controller
     linear_x_ = solution(0);
     linear_y_ = solution(1);
     angular_ = solution(2);
+
+    if (std::isnan(linear_x_) || std::isnan(linear_y_) || std::isnan(angular_))
+      return false;
 
     integrateXY(linear_x_ * dt, linear_y_ * dt, angular_ * dt);
 
