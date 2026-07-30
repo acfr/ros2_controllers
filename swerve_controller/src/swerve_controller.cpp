@@ -1141,7 +1141,7 @@ std::vector<Eigen::Vector2d> SwerveController::find_wheel_centres()
     const double side = steer_axis_centres_[i].y() >= 0 ? 1.0 : -1.0;
 
     const double wheel_centre_x =
-      steer_axis_centres_[i].x() + side * wheel_params_.drive_to_steer_offset * sin(steering_angle);
+      steer_axis_centres_[i].x() - side * wheel_params_.drive_to_steer_offset * sin(steering_angle);
     const double wheel_centre_y =
       steer_axis_centres_[i].y() + side * wheel_params_.drive_to_steer_offset * cos(steering_angle);
 
