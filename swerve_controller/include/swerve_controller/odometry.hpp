@@ -30,6 +30,8 @@
 #include <cmath>
 #include <iostream>
 
+#include <Eigen/Dense>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include "realtime_tools/realtime_buffer.hpp"
@@ -53,25 +55,26 @@ namespace swerve_controller
     explicit Odometry();
 
     /**
-     * \brief Updates the odometry class with latest wheels position
-     * \param drive_joints_values  Drive joint positions vector contains values in [rad]
-     * \param steer_joints_values Steer joint position vector contains values in [rad]
-     * \param dt      time difference to last call
-     * \return true if the odometry is actually updated
-     */
-    bool update_from_position(const std::vector<double> drive_joints_values,
-                              const std::vector<double> steer_joints_values, const double dt);
-
-    bool update_from_velocity(const std::vector<double> drive_joints_values,
-                              const std::vector<double> steer_joints_values, const double dt);
-
-    /**
      * \brief Updates the odometry class with latest velocity command
      * \param linear  Linear velocity [m/s]
      * \param angular Angular velocity [rad/s]
      * \param time    Current time
      */
     void update_open_loop(const double linear_x, const double linear_y, const double angular, const double dt);
+
+    /**
+     * \brief Updates the odometry class with the measured per-wheel velocity vectors
+     * (closed loop). Each wheel's velocity vector is fit against the wheel's known
+     * position relative to the robot origin to recover the robot's body-frame
+     * linear (x, y) and angular velocity via least squares, which is then integrated.
+     * \param drive_speed_vector Measured velocity vector [vx, vy] of each wheel, in the base frame [m/s]
+     * \param wheel_centres      Position of each wheel centre relative to the robot origin [m]
+     * \param dt                 Time since the last update [s]
+     * \return true if the update succeeded (sizes matched and were non-empty), false otherwise
+     */
+    bool update_odometry(const std::vector<Eigen::Vector2d> & drive_speed_vector,
+                          const std::vector<Eigen::Vector2d> & wheel_centres,
+                          const double dt);
 
     /**
      * \brief Set odometry type
@@ -153,14 +156,6 @@ namespace swerve_controller
     void reset_odometry();
 
   private:
-    /**
-     * \brief Uses precomputed linear and angular velocities to compute dometry and update
-     * accumulators
-     */
-    bool update_odometry(const double &fl_speed, const double &fr_speed, const double &rr_speed, const double &rl_speed,
-                         const double &fl_steering, const double &fr_steering, const double &rr_steering,
-                         const double &rl_steering, const double dt);
-
     void integrateXY(double linear_x, double linear_y, double angular);
 
     /// Current pose:
