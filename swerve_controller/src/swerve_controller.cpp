@@ -720,8 +720,21 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     std::vector<double> steering_rates;
     for (std::size_t i = 0; i < result.size(); i++)
     {
+      // Angular distance still to travel from the module's actual heading to the one just
+      // commanded for it.
+      const double steering_error =
+        difference_between_angles(current_steering_positions[i], result[i].steering_angle);
+
+      // Cosine slip compensation: only drive the wheel at its full commanded speed once its
+      // heading has caught up. While the module is still turning towards its target, scaling
+      // the drive speed by cos(steering_error) keeps the wheel rolling along its actual
+      // heading instead of scrubbing sideways against the ground, and relaxes back to the
+      // full commanded speed as the error closes.
+      const double cosine_slip_scale = std::cos(steering_error);
+
       // converting from m/s to rotational velocity rads/sec
-      drive_commands.push_back(result[i].drive_velocity / wheel_params_.radius);
+      drive_commands.push_back(
+        cosine_slip_scale * result[i].drive_velocity / wheel_params_.radius);
 
       const double previous_steering_position = (i < previous_steering_positions_.size())
         ? previous_steering_positions_[i]
@@ -733,8 +746,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       double steering_command = result[i].steering_angle;
       if (!params_.wrap_steering_commands)
       {
-        steering_command = current_steering_positions[i] +
-          difference_between_angles(current_steering_positions[i], steering_command);
+        steering_command = current_steering_positions[i] + steering_error;
       }
       steer_commands.push_back(steering_command);
     }

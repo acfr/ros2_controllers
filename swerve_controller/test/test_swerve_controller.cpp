@@ -333,13 +333,18 @@ TEST_F(TestSwerveController, correct_initialization_using_parameters)
   // The controller normalizes wheel speeds to max_drive_speed (1.0 m/s).
   // With linear_x=1.0, linear_y=1.0, the raw wheel speed is sqrt(2) ≈ 1.414 m/s > 1.0 m/s,
   // so all speeds are scaled down proportionally: effective_speed = 1.0 m/s.
-  const double expected_wheel_vel = 1.0 / 0.2;  // max_drive_speed / wheel_radius
+  //
+  // The steer joints all start at position 0.0, but the commanded heading here is 45 degrees,
+  // so cosine slip compensation additionally scales this first cycle's drive command down by
+  // cos(45 deg) while the wheels are still turning to catch up.
+  const double expected_wheel_angle = std::atan2(linear_y, linear_x);
+  const double expected_wheel_vel =
+    (1.0 / 0.2) * std::cos(expected_wheel_angle);  // max_drive_speed / wheel_radius
   EXPECT_NEAR(expected_wheel_vel, fl_drive_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_vel, fr_drive_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_vel, rl_drive_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_vel, rr_drive_cmd_.get_optional().value(), 0.01);
 
-  const double expected_wheel_angle = std::atan2(linear_y, linear_x);
   EXPECT_NEAR(expected_wheel_angle, fl_steer_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_angle, fr_steer_cmd_.get_optional().value(), 0.01);
   EXPECT_NEAR(expected_wheel_angle, rl_steer_cmd_.get_optional().value(), 0.01);
