@@ -705,17 +705,34 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     std::vector<double> current_steering_positions;
     for (std::size_t i = 0; i < forward_states.size(); i++)
     {
-      double current_velocity =
-        state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-      double current_steering =
-        state_interfaces_[i + forward_states.size()].get_optional().value_or(
-          std::numeric_limits<double>::quiet_NaN());
+      double current_velocity = state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+      double current_steering = state_interfaces_[i + forward_states.size()].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
       current_steering_positions.push_back(current_steering);
       result.push_back(select_best_state(
         forward_states[i], reverse_states[i], current_velocity, current_steering));
     }
 
     check_steering_limits(result);
+
+    // The wheel's contact point sits away from its own steering axis, so whenever the whole
+    // robot rotates, that offset gets swept through the same rotation and picks up an extra
+    // bit of velocity the axis-based kinematics above didn't account for (see steer_assist()
+    // for the derivation -- this is its angular_command_ term). That extra term belongs to the
+    // desired drive speed itself, so it's folded in here, upstream of the cosine slip
+    // compensation below, rather than added on afterwards where it would go unscaled.
+    const double angular_offset_correction = angular_command_ * wheel_params_.drive_to_steer_offset;
+    for (std::size_t i = 0; i < result.size(); i++)
+    {
+      // subtract the offset correction from the drive command if on the left side
+      if (i % 2 == 0)
+      {
+        result[i].drive_velocity -= angular_offset_correction;
+      }
+      else
+      {
+        result[i].drive_velocity += angular_offset_correction;
+      }
+    }
 
     std::vector<double> steering_rates;
     for (std::size_t i = 0; i < result.size(); i++)
@@ -845,21 +862,27 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 void SwerveController::steer_assist(
   std::vector<double> & drive_commands, const std::vector<double> & steering_rates)
 {
-  // The axis is rotating both because the whole robot is turning (angular_command_) and
-  // because the module itself is steering (steering_rates[i]), and those add directly:
+  // The wheel's offset from its steering axis is also swept around by the module's own
+  // steering motion (steering_rates[i]), on top of the whole-robot-rotation contribution
+  // already folded into the desired drive speed upstream, in update_and_write_commands:
   //
-  //   v_offset = -(angular_command_ + steering_rates[i]) * drive_to_steer_offset
+  //   v_offset = -steering_rates[i] * drive_to_steer_offset
   //
   // which mirrors sign left-to-right because the offset itself is mirrored between sides.
   for (std::size_t i = 0; i < steering_rates.size(); i++)
   {
-    const double module_angular_velocity = angular_command_ + steering_rates[i];
-
     const double offset_speed_correction =
-      module_angular_velocity * wheel_params_.drive_to_steer_offset / wheel_params_.radius;
+      steering_rates[i] * wheel_params_.drive_to_steer_offset / wheel_params_.radius;
 
     // subtract the offset correction from the drive command if on the left side
-    drive_commands[i] += -1 * (i % 2 == 0) * offset_speed_correction;
+    if (i % 2 == 0)
+    {
+      drive_commands[i] -= offset_speed_correction;
+    }
+    else
+    {
+      drive_commands[i] += offset_speed_correction;
+    }
   }
 }
 
