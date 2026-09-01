@@ -295,8 +295,6 @@ protected:
   
   void find_icrs(std::vector<double> angles);
 
-  void steer_assist(std::vector<double> & drive_commands, const std::vector<double> & steering_rates);
-  
   // callback for topic interface
   void reference_callback(const std::shared_ptr<ControllerTwistReferenceMsg> msg);
 

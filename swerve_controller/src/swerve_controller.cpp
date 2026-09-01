@@ -330,27 +330,24 @@ bool SwerveController::update_odometry(const rclcpp::Duration & period)
     odometry_.update_open_loop(
       linear_x_command_, linear_y_command_, angular_command_, period.seconds());
   }
+  else if (!check_joint_states_are_valid())
+  {
+    return false;
+  }
   else
   {
-    if (check_joint_states_are_valid())
+    if (params_.position_feedback)
     {
-
-      if (params_.position_feedback)
-      {
-        // Estimate linear and angular velocity using joint information
-        const double scale = 1/period.seconds();
-        if (std::isnan(scale)) {
-          return false;
-        }
-        odometry_.update_odometry(
-          get_wheel_velocities(scale * params_.wheel_radius), find_wheel_centres(), period.seconds());
-      }
-      else
-      {
-        // Estimate linear and angular velocity using joint information
-        odometry_.update_odometry(
-          get_wheel_velocities(params_.wheel_radius), find_wheel_centres(), period.seconds());
-      }
+      // Estimate linear and angular velocity using joint information
+      const double scale = 1 / period.seconds();
+      odometry_.update_odometry(
+        get_wheel_velocities(scale * params_.wheel_radius), find_wheel_centres(), period.seconds());
+    }
+    else
+    {
+      // Estimate linear and angular velocity using joint information
+      odometry_.update_odometry(
+        get_wheel_velocities(params_.wheel_radius), find_wheel_centres(), period.seconds());
     }
   }
   return true;
@@ -563,57 +560,67 @@ controller_interface::return_type SwerveController::update_reference_from_subscr
 controller_interface::return_type SwerveController::update_and_write_commands(
   const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  auto current_ref = *(input_ref_.readFromRT());
-
-  if (!is_in_chained_mode())
+  if (period.seconds() == 0) {
+    return controller_interface::return_type::OK;
+  }
+  ControllerTwistReferenceMsg command;
+  
+  // If the controller is not in chained mode, the control is coming from a ros topic
+  if (is_in_chained_mode())
   {
-    const auto age_of_last_command = time - (current_ref)->header.stamp;
-    // send message only if there is no timeout
-    if (age_of_last_command <= ref_timeout_ || ref_timeout_ == rclcpp::Duration::from_seconds(0))
-    {
-      if (
-        !std::isnan(current_ref->twist.linear.x) && !std::isnan(current_ref->twist.linear.y) &&
-        !std::isnan(current_ref->twist.angular.z))
-      {
-        reference_interfaces_[0] = current_ref->twist.linear.x;
-        reference_interfaces_[1] = current_ref->twist.linear.y;
-        reference_interfaces_[2] = current_ref->twist.angular.z;
-      }
-    }
+    command.header.stamp = time;
+    command.twist.linear.x = reference_interfaces_[0];
+    command.twist.linear.y = reference_interfaces_[1];
+    command.twist.angular.z = reference_interfaces_[2];
+
+    reference_interfaces_[0] = std::numeric_limits<double>::quiet_NaN();
+    reference_interfaces_[1] = std::numeric_limits<double>::quiet_NaN();
+    reference_interfaces_[2] = std::numeric_limits<double>::quiet_NaN();
   }
   else
   {
-    if (
-      !std::isnan(current_ref->twist.linear.x) && !std::isnan(current_ref->twist.linear.y) &&
-      !std::isnan(current_ref->twist.angular.z))
+    const auto current_ref = *(input_ref_.readFromRT());
+    const auto age_of_last_command = time - (current_ref)->header.stamp;
+    if (age_of_last_command <= ref_timeout_ || ref_timeout_ == rclcpp::Duration::from_seconds(0))
     {
-      RCLCPP_INFO(get_node()->get_logger(), "REF TIMED OUT");
-
-      reference_interfaces_[0] = 0.0;
-      reference_interfaces_[1] = 0.0;
-      reference_interfaces_[2] = 0.0;
-      current_ref->twist.linear.x = std::numeric_limits<double>::quiet_NaN();
-      current_ref->twist.linear.y = std::numeric_limits<double>::quiet_NaN();
-      current_ref->twist.angular.z = std::numeric_limits<double>::quiet_NaN();
+      command = *current_ref;
+    }
+    else
+    {
+      command.twist.linear.x = std::numeric_limits<double>::quiet_NaN();
+      command.twist.linear.y = std::numeric_limits<double>::quiet_NaN();
+      command.twist.angular.z = std::numeric_limits<double>::quiet_NaN();
     }
   }
 
-  update_odometry(period);
+  // This updates state interfaces which are required in the swerve_calculations, if it fails
+  // then exit early.
+  
+  if (!update_odometry(period)) {
+    return controller_interface::return_type::OK;
+  }
 
-  if (
-    (std::abs(reference_interfaces_[0]) > 0.001) || (std::abs(reference_interfaces_[1]) > 0.001) ||
-    (std::abs(reference_interfaces_[2]) > 0.0349))
+  const bool command_is_nan = std::isnan(command.twist.linear.x) ||
+                              std::isnan(command.twist.linear.y) ||
+                              std::isnan(command.twist.angular.z);
+  const bool command_is_negligible = (std::abs(command.twist.linear.x) <= 0.001) &&
+                                     (std::abs(command.twist.linear.y) <= 0.001) &&
+                                     (std::abs(command.twist.angular.z) <= 0.0349);
+
+  if (command_is_nan || command_is_negligible)
+  {
+    brake();
+  }
+  else
   {
     std::vector<double> drive_commands;
     std::vector<double> steer_commands;
-    const double steering_track =
-      wheel_params_.wheel_track - 2 * wheel_params_.drive_to_steer_offset;
 
     // store and set commands
 
-    linear_x_command_ = reference_interfaces_[0];
-    linear_y_command_ = reference_interfaces_[1];
-    angular_command_ = reference_interfaces_[2];
+    linear_x_command_ = command.twist.linear.x;
+    linear_y_command_ = command.twist.linear.y;
+    angular_command_ = command.twist.angular.z;
 
     auto & last_command = previous_commands_.back().twist;
     auto & second_to_last_command = previous_commands_.front().twist;
@@ -627,145 +634,91 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       angular_command_, last_command.angular.z, second_to_last_command.angular.z, period.seconds());
 
     previous_commands_.pop();
-    previous_commands_.emplace(*current_ref);
+    previous_commands_.emplace(command);
 
     // Publish limited velocity
     if (publish_limited_velocity_ && realtime_limited_velocity_publisher_->trylock())
     {
       auto & limited_velocity_command = realtime_limited_velocity_publisher_->msg_;
       limited_velocity_command.header.stamp = time;
-      limited_velocity_command.twist = (current_ref)->twist;
+      limited_velocity_command.twist = command.twist;
       realtime_limited_velocity_publisher_->unlockAndPublish();
     }
 
-    // Calculate the raw speeds w/o offset
-    double fl_speed_x = linear_x_command_ - angular_command_ * steering_track / 2.0;
-    double fl_speed_y = linear_y_command_ + angular_command_ * wheel_params_.wheelbase / 2.0;
-    double fr_speed_x = linear_x_command_ + angular_command_ * steering_track / 2.0;
-    double fr_speed_y = linear_y_command_ + angular_command_ * wheel_params_.wheelbase / 2.0;
-    double rl_speed_x = linear_x_command_ - angular_command_ * steering_track / 2.0;
-    double rl_speed_y = linear_y_command_ - angular_command_ * wheel_params_.wheelbase / 2.0;
-    double rr_speed_x = linear_x_command_ + angular_command_ * steering_track / 2.0;
-    double rr_speed_y = linear_y_command_ - angular_command_ * wheel_params_.wheelbase / 2.0;
-
-    std::vector<double> drive_linear_x = {fl_speed_x, fr_speed_x, rl_speed_x, rr_speed_x};
-    std::vector<double> drive_linear_y = {fl_speed_y, fr_speed_y, rl_speed_y, rr_speed_y};
-
-    // Create velocities and position variables
-    double fl_speed = 0, fr_speed = 0, rr_speed = 0, rl_speed = 0;
-
-    fl_speed = sqrt(pow(fl_speed_x, 2) + pow(fl_speed_y, 2));
-    fr_speed = sqrt(pow(fr_speed_x, 2) + pow(fr_speed_y, 2));
-    rl_speed = sqrt(pow(rl_speed_x, 2) + pow(rl_speed_y, 2));
-    rr_speed = sqrt(pow(rr_speed_x, 2) + pow(rr_speed_y, 2));
-
-    std::vector<double> drive_speeds = {fl_speed, fr_speed, rl_speed, rr_speed};
-    std::vector<double> scales;
-
-    float max_drive_speed = 1.0;
-
-    // This part of the code implements some logic from zinger_swerve_controller
-    // Shout out to @pvandervelde
-    for (std::size_t i = 0; i < drive_speeds.size(); i++)
-    {
-      float a = drive_speeds[i];
-      float b = 0.0;
-      float abs_tol = 1e-15;
-      float rel_tol = 1e-15;
-      float scale = 1.0f;
-
-      if (!is_close(a, b, abs_tol, rel_tol))
-      {
-        scale = max_drive_speed / a;
-        if (scale >= 1.0) scale = 1.0;
-      }
-
-      scales.push_back(scale);
-    }
-
-    float normalising_factor = *max_element(scales.begin(), scales.end());
-
-    std::vector<DriveModuleDesiredValues> forward_states;
-    std::vector<DriveModuleDesiredValues> reverse_states;
-
-    for (std::size_t i = 0; i < drive_speeds.size(); i++)
-    {
-      auto [forward_angle, reverse_angle] =
-        calculate_steering_angles(drive_linear_x[i], drive_linear_y[i], drive_speeds[i]);
-
-      DriveModuleDesiredValues forward_state{forward_angle, drive_speeds[i] * normalising_factor};
-      DriveModuleDesiredValues reverse_state{
-        reverse_angle, -1 * drive_speeds[i] * normalising_factor};
-
-      forward_states.push_back(forward_state);
-      reverse_states.push_back(reverse_state);
-    }
-
-    std::vector<DriveModuleDesiredValues> result;
-    std::vector<double> current_steering_positions;
-    for (std::size_t i = 0; i < forward_states.size(); i++)
-    {
-      double current_velocity = state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-      double current_steering = state_interfaces_[i + forward_states.size()].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-      current_steering_positions.push_back(current_steering);
-      result.push_back(select_best_state(
-        forward_states[i], reverse_states[i], current_velocity, current_steering));
-    }
-
-    check_steering_limits(result);
-
-    // The wheel's contact point sits away from its own steering axis, so whenever the whole
-    // robot rotates, that offset gets swept through the same rotation and picks up an extra
-    // bit of velocity the axis-based kinematics above didn't account for (see steer_assist()
-    // for the derivation -- this is its angular_command_ term). That extra term belongs to the
-    // desired drive speed itself, so it's folded in here, upstream of the cosine slip
-    // compensation below, rather than added on afterwards where it would go unscaled.
+    // The wheel's contact point sits drive_to_steer_offset away from its own steering axis, so
+    // whenever the whole robot rotates that offset gets swept through the same rotation and
+    // picks up an extra bit of velocity the axis-based kinematics didn't account for -- this is
+    // the angular_command_ term. That extra term belongs to the desired drive speed itself, so
+    // it's folded into drive_velocity in the loop below, upstream of the cosine slip
+    // compensation, rather than added on afterwards where it would go unscaled. (The companion
+    // term for the module's *own* steering motion is steer_assist_correction, further down.)
     const double angular_offset_correction = angular_command_ * wheel_params_.drive_to_steer_offset;
-    for (std::size_t i = 0; i < result.size(); i++)
-    {
-      // subtract the offset correction from the drive command if on the left side
-      if (i % 2 == 0)
-      {
-        result[i].drive_velocity -= angular_offset_correction;
-      }
-      else
-      {
-        result[i].drive_velocity += angular_offset_correction;
-      }
-    }
 
-    std::vector<double> steering_rates;
-    for (std::size_t i = 0; i < result.size(); i++)
+    const std::size_t num_modules = params_.drive_joints_names.size();
+    std::vector<double> current_steering_positions;
+    current_steering_positions.reserve(num_modules);
+
+    for (std::size_t i = 0; i < num_modules; i++)
     {
+      // Per-module inverse kinematics: v = v_body + omega_z x r, with r the module's steer
+      // axis centre relative to base_link (cached in steer_axis_centres_ at configure time).
+      const Eigen::Vector3d & axis_centre = steer_axis_centres_[i];
+      const double side = axis_centre.y() >= 0 ? 1.0 : -1.0;  // left (+y) / right (-y)
+
+      const double vx = linear_x_command_ - angular_command_ * axis_centre.y();
+      const double vy = linear_y_command_ + angular_command_ * axis_centre.x();
+      const double speed = std::hypot(vx, vy);
+
+      const auto [forward_angle, reverse_angle] = calculate_steering_angles(vx, vy, speed);
+      const DriveModuleDesiredValues forward_state{forward_angle, speed};
+      const DriveModuleDesiredValues reverse_state{reverse_angle, -speed};
+
+      const double current_velocity =
+        state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+
+      const double current_steering =
+        state_interfaces_[num_modules + i].get_optional().value_or(
+          std::numeric_limits<double>::quiet_NaN());
+
+      current_steering_positions.push_back(current_steering);
+
+      const DriveModuleDesiredValues best =
+        select_best_state(forward_state, reverse_state, current_velocity, current_steering);
+
+      // fold in the whole-robot-rotation offset term (mirrored left-to-right). This one is
+      // applied upstream of the cosine slip scaling below so it gets scaled with the rest of
+      // the drive speed rather than tacked on unscaled.
+      const double drive_velocity = best.drive_velocity - side * angular_offset_correction;
+
       // Angular distance still to travel from the module's actual heading to the one just
       // commanded for it.
       const double steering_error =
-        difference_between_angles(current_steering_positions[i], result[i].steering_angle);
+        difference_between_angles(current_steering, best.steering_angle);
 
       // Cosine slip compensation: only drive the wheel at its full commanded speed once its
       // heading has caught up. While the module is still turning towards its target, scaling
       // the drive speed by cos(steering_error) keeps the wheel rolling along its actual
       // heading instead of scrubbing sideways against the ground, and relaxes back to the
-      // full commanded speed as the error closes.
-      const double cosine_slip_scale = std::cos(steering_error);
+      // full commanded speed as the error closes. Also converts m/s -> rad/s.
+      const double drive_command = std::cos(steering_error) * drive_velocity / wheel_params_.radius;
 
-      // converting from m/s to rotational velocity rads/sec
-      drive_commands.push_back(
-        cosine_slip_scale * result[i].drive_velocity / wheel_params_.radius);
-
+      // Steer assist: the drive_to_steer_offset is also swept around by the module's own
+      // steering motion (rate estimated from the last two measured positions), adding a
+      // longitudinal -steering_rate * offset term. Mirrors sign left-to-right like the offset
+      // itself, and -- unlike angular_offset_correction -- is applied after the cosine slip
+      // scaling above.
       const double previous_steering_position = (i < previous_steering_positions_.size())
-        ? previous_steering_positions_[i]
-        : current_steering_positions[i];
-      steering_rates.push_back(
-        difference_between_angles(previous_steering_position, current_steering_positions[i]) /
-        period.seconds());
+                                                  ? previous_steering_positions_[i]
+                                                  : current_steering;
+      const double steering_rate =
+        difference_between_angles(previous_steering_position, current_steering) / period.seconds();
+      const double steer_assist_correction =
+        side * steering_rate * wheel_params_.drive_to_steer_offset / wheel_params_.radius;
 
-      double steering_command = result[i].steering_angle;
-      if (!params_.wrap_steering_commands)
-      {
-        steering_command = current_steering_positions[i] + steering_error;
-      }
-      steer_commands.push_back(steering_command);
+      drive_commands.push_back(drive_command - steer_assist_correction);
+
+      steer_commands.push_back(
+        params_.wrap_steering_commands ? best.steering_angle : current_steering + steering_error);
     }
 
     // remember this cycle's measured positions so the next cycle can estimate steering rate
@@ -774,13 +727,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 
     find_icrs(steer_commands);
 
-    steer_assist(drive_commands, steering_rates);
-
     update_command_interfaces(drive_commands, steer_commands);
-  }
-  else
-  {
-    brake();
   }
 
   // Publish odometry message
@@ -852,38 +799,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     controller_state_publisher_->unlockAndPublish();
   }
 
-  reference_interfaces_[0] = std::numeric_limits<double>::quiet_NaN();
-  reference_interfaces_[1] = std::numeric_limits<double>::quiet_NaN();
-  reference_interfaces_[2] = std::numeric_limits<double>::quiet_NaN();
-
   return controller_interface::return_type::OK;
-}
-
-void SwerveController::steer_assist(
-  std::vector<double> & drive_commands, const std::vector<double> & steering_rates)
-{
-  // The wheel's offset from its steering axis is also swept around by the module's own
-  // steering motion (steering_rates[i]), on top of the whole-robot-rotation contribution
-  // already folded into the desired drive speed upstream, in update_and_write_commands:
-  //
-  //   v_offset = -steering_rates[i] * drive_to_steer_offset
-  //
-  // which mirrors sign left-to-right because the offset itself is mirrored between sides.
-  for (std::size_t i = 0; i < steering_rates.size(); i++)
-  {
-    const double offset_speed_correction =
-      steering_rates[i] * wheel_params_.drive_to_steer_offset / wheel_params_.radius;
-
-    // subtract the offset correction from the drive command if on the left side
-    if (i % 2 == 0)
-    {
-      drive_commands[i] -= offset_speed_correction;
-    }
-    else
-    {
-      drive_commands[i] += offset_speed_correction;
-    }
-  }
 }
 
 void SwerveController::check_steering_limits(std::vector<DriveModuleDesiredValues> & result)
@@ -1152,7 +1068,8 @@ std::vector<Eigen::Vector3d> SwerveController::find_steer_axis_centre_coords()
   return centres;
 }
 
-std::vector<Eigen::Vector2d> SwerveController::get_wheel_velocities(double scale) {
+std::vector<Eigen::Vector2d> SwerveController::get_wheel_velocities(double scale)
+{
   std::vector<Eigen::Vector2d> drive_speed_vector;
   for (std::size_t i = 0; i < drive_joints_names_.size(); i++)
   {
@@ -1174,7 +1091,8 @@ std::vector<Eigen::Vector2d> SwerveController::find_wheel_centres()
 
   if (steer_joints_values_.size() != steer_axis_centres_.size())
   {
-    RCLCPP_WARN(get_node()->get_logger(), "find_wheel_centres: steer_joints_values_ not yet populated");
+    RCLCPP_WARN(
+      get_node()->get_logger(), "find_wheel_centres: steer_joints_values_ not yet populated");
     return wheel_centres_;
   }
 
@@ -1192,8 +1110,9 @@ std::vector<Eigen::Vector2d> SwerveController::find_wheel_centres()
     const double wheel_centre_y =
       steer_axis_centres_[i].y() + side * wheel_params_.drive_to_steer_offset * cos(steering_angle);
 
-    // std::cerr << steer_axis_centres_[i].x() << ", " << wheel_centre_x << "; " << steer_axis_centres_[i].y() << ", " << wheel_centre_y << std::endl;
-    
+    // std::cerr << steer_axis_centres_[i].x() << ", " << wheel_centre_x << "; " <<
+    // steer_axis_centres_[i].y() << ", " << wheel_centre_y << std::endl;
+
     Eigen::Vector2d centre{wheel_centre_x, wheel_centre_y};
     wheel_centres_.push_back(centre);
   }
