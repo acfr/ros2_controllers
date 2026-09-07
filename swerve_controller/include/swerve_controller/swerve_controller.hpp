@@ -224,10 +224,6 @@ protected:
   double linear_y_command_ = 0.0;
   double angular_command_ = 0.0;
 
-  // actual steer joint positions read on the previous update cycle, used to estimate each
-  // module's steering rate from measured feedback rather than from its commanded target
-  std::vector<double> previous_steering_positions_;
-
   bool is_halted = false;
   bool use_stamped_vel_ = true;
 

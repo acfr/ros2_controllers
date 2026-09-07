@@ -645,13 +645,6 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       realtime_limited_velocity_publisher_->unlockAndPublish();
     }
 
-    // The wheel's contact point sits drive_to_steer_offset away from its own steering axis, so
-    // whenever the whole robot rotates that offset gets swept through the same rotation and
-    // picks up an extra bit of velocity the axis-based kinematics didn't account for -- this is
-    // the angular_command_ term. That extra term belongs to the desired drive speed itself, so
-    // it's folded into drive_velocity in the loop below, upstream of the cosine slip
-    // compensation, rather than added on afterwards where it would go unscaled. (The companion
-    // term for the module's *own* steering motion is steer_assist_correction, further down.)
     const double angular_offset_correction = angular_command_ * wheel_params_.drive_to_steer_offset;
 
     const std::size_t num_modules = params_.drive_joints_names.size();
@@ -702,29 +695,12 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       // full commanded speed as the error closes. Also converts m/s -> rad/s.
       const double drive_command = std::cos(steering_error) * drive_velocity / wheel_params_.radius;
 
-      // Steer assist: the drive_to_steer_offset is also swept around by the module's own
-      // steering motion (rate estimated from the last two measured positions), adding a
-      // longitudinal -steering_rate * offset term. Mirrors sign left-to-right like the offset
-      // itself, and -- unlike angular_offset_correction -- is applied after the cosine slip
-      // scaling above.
-      const double previous_steering_position = (i < previous_steering_positions_.size())
-                                                  ? previous_steering_positions_[i]
-                                                  : current_steering;
-      const double steering_rate =
-        difference_between_angles(previous_steering_position, current_steering) / period.seconds();
-      const double steer_assist_correction =
-        side * steering_rate * wheel_params_.drive_to_steer_offset / wheel_params_.radius;
-
-      drive_commands.push_back(drive_command - steer_assist_correction);
+      drive_commands.push_back(drive_command);
 
       steer_commands.push_back(
         params_.wrap_steering_commands ? best.steering_angle : current_steering + steering_error);
     }
-
-    // remember this cycle's measured positions so the next cycle can estimate steering rate
-    // from them
-    previous_steering_positions_ = current_steering_positions;
-
+    
     find_icrs(steer_commands);
 
     update_command_interfaces(drive_commands, steer_commands);
@@ -910,10 +886,6 @@ bool SwerveController::reset()
   // release the old queue
   std::queue<ControllerTwistReferenceMsg> empty;
   std::swap(previous_commands_, empty);
-
-  // discard so the next cycle's steering rate estimate starts from "no prior data" rather
-  // than comparing against positions from before the reset
-  previous_steering_positions_.clear();
 
   subscriber_is_active_ = false;
   is_halted = false;
