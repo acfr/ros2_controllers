@@ -164,8 +164,6 @@ protected:
       0.0;  // distance between left and right side wheels w.r.t. the midpoint of the wheel
     double radius = 0.0;  // Assumed to be the same for all wheels
     double drive_to_steer_offset = 0.0f;
-    double max_steering_angle = 0.0f;
-    double min_steering_angle = 0.0f;
   } wheel_params_;
 
   struct OdometryParams
@@ -259,7 +257,8 @@ protected:
   float min_steering_angle_ = -M_PI;
   float max_steering_angle_ = M_PI;
 
-  std::pair<double, double> calculate_steering_angles(double vx, double vy, double speed);
+  std::pair<double, double> calculate_steering_angles(
+    double vx, double vy, double speed, double current_steering);
 
   const DriveModuleDesiredValues & select_best_state(
     const DriveModuleDesiredValues & forward, const DriveModuleDesiredValues & reverse,
@@ -274,7 +273,7 @@ protected:
 
   bool check_joint_states_are_valid();
 
-  void check_steering_limits(std::vector<DriveModuleDesiredValues> & result);
+  void apply_steering_limits(double & steering_command, double & drive_command) const;
 
   bool is_close(float a, float b, float abs_tol, float rel_tol);
 

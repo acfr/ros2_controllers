@@ -307,8 +307,8 @@ controller_interface::CallbackReturn SwerveController::configure_odometry()
   wheel_params_.wheelbase = params_.wheelbase;
   wheel_params_.wheel_track = params_.wheel_track;
   wheel_params_.drive_to_steer_offset = params_.drive_to_steer_offset;
-  wheel_params_.max_steering_angle = params_.max_steering_limit;
-  wheel_params_.min_steering_angle = params_.min_steering_limit;
+  min_steering_angle_ = static_cast<float>(params_.min_steering_limit);
+  max_steering_angle_ = static_cast<float>(params_.max_steering_limit);
 
   odometry_.set_wheel_params(
     wheel_params_.radius, wheel_params_.wheelbase, wheel_params_.wheel_track,
@@ -651,8 +651,25 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     std::vector<double> current_steering_positions;
     current_steering_positions.reserve(num_modules);
 
+    bool joint_state_invalid = false;
+
     for (std::size_t i = 0; i < num_modules; i++)
     {
+      const double current_velocity =
+        state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
+
+      const double current_steering =
+        state_interfaces_[num_modules + i].get_optional().value_or(
+          std::numeric_limits<double>::quiet_NaN());
+
+      if (std::isnan(current_velocity) || std::isnan(current_steering))
+      {
+        joint_state_invalid = true;
+        continue;
+      }
+
+      current_steering_positions.push_back(current_steering);
+
       // Per-module inverse kinematics: v = v_body + omega_z x r, with r the module's steer
       // axis centre relative to base_link (cached in steer_axis_centres_ at configure time).
       const Eigen::Vector3d & axis_centre = steer_axis_centres_[i];
@@ -662,18 +679,10 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       const double vy = linear_y_command_ + angular_command_ * axis_centre.x();
       const double speed = std::hypot(vx, vy);
 
-      const auto [forward_angle, reverse_angle] = calculate_steering_angles(vx, vy, speed);
+      const auto [forward_angle, reverse_angle] =
+        calculate_steering_angles(vx, vy, speed, current_steering);
       const DriveModuleDesiredValues forward_state{forward_angle, speed};
       const DriveModuleDesiredValues reverse_state{reverse_angle, -speed};
-
-      const double current_velocity =
-        state_interfaces_[i].get_optional().value_or(std::numeric_limits<double>::quiet_NaN());
-
-      const double current_steering =
-        state_interfaces_[num_modules + i].get_optional().value_or(
-          std::numeric_limits<double>::quiet_NaN());
-
-      current_steering_positions.push_back(current_steering);
 
       const DriveModuleDesiredValues best =
         select_best_state(forward_state, reverse_state, current_velocity, current_steering);
@@ -693,17 +702,27 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       // the drive speed by cos(steering_error) keeps the wheel rolling along its actual
       // heading instead of scrubbing sideways against the ground, and relaxes back to the
       // full commanded speed as the error closes. Also converts m/s -> rad/s.
-      const double drive_command = std::cos(steering_error) * drive_velocity / wheel_params_.radius;
+      double drive_command = std::cos(steering_error) * drive_velocity / wheel_params_.radius;
+
+      double steering_command =
+        params_.wrap_steering_commands ? best.steering_angle : current_steering + steering_error;
+
+      apply_steering_limits(steering_command, drive_command);
 
       drive_commands.push_back(drive_command);
-
-      steer_commands.push_back(
-        params_.wrap_steering_commands ? best.steering_angle : current_steering + steering_error);
+      steer_commands.push_back(steering_command);
     }
-    
-    find_icrs(steer_commands);
 
-    update_command_interfaces(drive_commands, steer_commands);
+    if (joint_state_invalid)
+    {
+      RCLCPP_WARN(get_node()->get_logger(), "JOINT STATES NOT VALID, braking");
+      brake();
+    }
+    else
+    {
+      find_icrs(steer_commands);
+      update_command_interfaces(drive_commands, steer_commands);
+    }
   }
 
   // Publish odometry message
@@ -778,47 +797,34 @@ controller_interface::return_type SwerveController::update_and_write_commands(
   return controller_interface::return_type::OK;
 }
 
-void SwerveController::check_steering_limits(std::vector<DriveModuleDesiredValues> & result)
+void SwerveController::apply_steering_limits(double & steering_command, double & drive_command) const
 {
-  for (std::size_t i = 0; i < result.size(); i++)
+  if (steering_command >= min_steering_angle_ && steering_command <= max_steering_angle_)
   {
-    float angle = result[i].steering_angle;
-
-    if (angle > max_steering_angle_)
-    {
-      // RCLCPP_INFO(get_node()->get_logger(), "More than MAX");
-      if (angle - M_PI > min_steering_angle_)
-      {
-        result[i].steering_angle = angle - M_PI;
-        result[i].drive_velocity = -1 * result[i].drive_velocity;
-      }
-      else  // unreachable so set to max
-      {
-        result[i].steering_angle = max_steering_angle_;
-      }
-    }
-    else if (angle < min_steering_angle_)
-    {
-      // RCLCPP_INFO(get_node()->get_logger(), "Less than MIN");
-      if (angle + M_PI < max_steering_angle_)
-      {
-        result[i].steering_angle = angle + M_PI;
-        result[i].drive_velocity = -1 * result[i].drive_velocity;
-      }
-      else  // unreachable so set to min
-      {
-        result[i].steering_angle = min_steering_angle_;
-      }
-    }
+    return;
   }
+
+  const double flipped =
+    steering_command > max_steering_angle_ ? steering_command - M_PI : steering_command + M_PI;
+
+  if (flipped >= min_steering_angle_ && flipped <= max_steering_angle_)
+  {
+    steering_command = flipped;
+    drive_command = -drive_command;
+    return;
+  }
+
+  steering_command = std::clamp(
+    steering_command, static_cast<double>(min_steering_angle_),
+    static_cast<double>(max_steering_angle_));
 }
 
 std::pair<double, double> SwerveController::calculate_steering_angles(
-  double vx, double vy, double speed)
+  double vx, double vy, double speed, double current_steering)
 {
   if (is_close(speed, 0.0, 1e-9, 1e-9))
   {
-    return {std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
+    return {current_steering, current_steering};
   }
   double cos_angle = std::acos(vx / speed);
   double sin_angle = std::asin(vy / speed);
@@ -1181,20 +1187,20 @@ void SwerveController::publish_icrs(std::vector<std::vector<double>> icr_list)
     icr_publisher_->msg_.colors.push_back(color_);
   }
 
-  float x_body_icr = -linear_y_command_ / angular_command_;
-  float y_body_icr = linear_x_command_ / angular_command_;
+  if (!is_close(angular_command_, 0.0, 1e-9, 1e-9))
+  {
+    geometry_msgs::msg::Point point;
+    point.x = -linear_y_command_ / angular_command_;
+    point.y = linear_x_command_ / angular_command_;
+    point.z = 0.0;
 
-  geometry_msgs::msg::Point point;
-  point.x = x_body_icr;
-  point.y = y_body_icr;
-  point.z = 0.0;
-
-  color_.r = 1.0;
-  color_.g = 0.38;
-  color_.b = 0.278;
-  color_.a = 1.0;
-  icr_publisher_->msg_.points.push_back(point);
-  icr_publisher_->msg_.colors.push_back(color_);
+    color_.r = 1.0;
+    color_.g = 0.38;
+    color_.b = 0.278;
+    color_.a = 1.0;
+    icr_publisher_->msg_.points.push_back(point);
+    icr_publisher_->msg_.colors.push_back(color_);
+  }
 
   icr_publisher_->unlockAndPublish();
 }
