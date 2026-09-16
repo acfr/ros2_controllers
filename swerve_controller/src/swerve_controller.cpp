@@ -511,10 +511,15 @@ controller_interface::CallbackReturn SwerveController::on_deactivate(
   {
     command_interfaces_[i].set_value(0.0);
   }
-  // Set all steer joints to zero position
+  // Hold steer joints at their current position; they are continuous absolute encoders, so
+  // commanding a literal 0.0 sends them travelling back to the power-on zero.
+  const std::size_t num_drive_joints = params_.drive_joints_names.size();
   for (size_t i = 0; i < params_.steer_joints_names.size(); i++)
   {
-    command_interfaces_[i + params_.drive_joints_names.size()].set_value(0.0);
+    const double current_position =
+      state_interfaces_[num_drive_joints + i].get_optional().value_or(
+        std::numeric_limits<double>::quiet_NaN());
+    command_interfaces_[num_drive_joints + i].set_value(current_position);
   }
   // Reset reference interfaces to zero to prevent kinematics on the next update() call
   reference_interfaces_.assign(reference_interfaces_.size(), 0.0);
