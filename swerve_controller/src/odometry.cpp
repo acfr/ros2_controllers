@@ -35,8 +35,12 @@ namespace swerve_controller
         wheel_track_(0.0),
         wheelbase_(0.0),
         wheel_radius_(0.0),
-        steering_track_(0.0)
+        steering_track_(0.0),
+        covariance_floor_(Eigen::Vector3d::Zero()),
+        residual_gain_(0.0),
+        max_variance_(0.0)
   {
+    twist_covariance_ = covariance_floor_.asDiagonal();
   }
 
   bool Odometry::update_odometry(const std::vector<Eigen::Vector2d> & drive_speed_vector,
@@ -102,6 +106,30 @@ namespace swerve_controller
 
     integrateXY(linear_x_ * dt, linear_y_ * dt, angular_ * dt);
 
+    // Least-squares covariance sigma^2 (A^T A)^-1: sigma^2 is the per-wheel noise, estimated from
+    // how far the wheels disagree with the fitted motion, and (A^T A)^-1 maps it through the wheel
+    // layout. Wheels slipping together still agree, so uniform slip isn't detected.
+    const Eigen::VectorXd residual = b - A * solution;
+    const int dof = static_cast<int>(b.size() - A.cols());
+    const double sigma2 = dof > 0 ? residual.squaredNorm() / dof : 0.0;
+
+    Eigen::Matrix3d covariance = residual_gain_ * sigma2 * (A.transpose() * A).inverse();
+    covariance.diagonal() += covariance_floor_;
+
+    // Cap the variances, scaling rows and columns together so the matrix stays a valid covariance
+    Eigen::Vector3d scale = Eigen::Vector3d::Ones();
+    for (int k = 0; k < covariance.rows(); ++k)
+    {
+      if (covariance(k, k) > max_variance_)
+        scale(k) = std::sqrt(max_variance_ / covariance(k, k));
+    }
+    covariance = scale.asDiagonal() * covariance * scale.asDiagonal();
+
+    if (covariance.hasNaN())
+      twist_covariance_ = covariance_floor_.asDiagonal();
+    else
+      twist_covariance_ = covariance;
+
     return true;
   }
 
@@ -112,6 +140,7 @@ namespace swerve_controller
     linear_x_ = linear_x;
     linear_y_ = linear_y;
     angular_ = angular;
+    twist_covariance_ = covariance_floor_.asDiagonal();
 
     // Integrate odometry
     integrateXY(linear_x_ * dt, linear_y_ * dt, angular_ * dt);
@@ -124,6 +153,14 @@ namespace swerve_controller
     wheel_track_ = wheel_track;
     drive_to_steer_offset_ = offset;
     steering_track_ = wheel_track - 2 * offset;
+  }
+
+  void Odometry::set_covariance_params(const Eigen::Vector3d & floor, double residual_gain, double max_variance)
+  {
+    covariance_floor_ = floor;
+    residual_gain_ = residual_gain;
+    max_variance_ = max_variance;
+    twist_covariance_ = covariance_floor_.asDiagonal();
   }
 
   void Odometry::reset_odometry()

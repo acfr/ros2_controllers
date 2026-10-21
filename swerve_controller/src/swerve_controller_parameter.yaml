@@ -102,6 +102,28 @@ swerve_controller:
       read_only: false,
     }
 
+  twist_covariance:
+    dynamic:
+      {
+        type: bool,
+        default_value: false,
+        description: "Estimate the vx, vy and angular z twist covariance from how well the wheel velocities agree with a single rigid-body motion. twist_covariance_diagonal is then used as the minimum value for those entries.",
+      }
+    residual_gain:
+      {
+        type: double,
+        default_value: 1.0,
+        description: "Scale applied to the wheel fit residual variance when estimating the twist covariance.",
+        validation: { gt_eq<>: [0.0] },
+      }
+    max_variance:
+      {
+        type: double,
+        default_value: 1.0,
+        description: "Upper bound on each estimated twist variance.",
+        validation: { gt<>: [0.0] },
+      }
+
   position_feedback:
     {
       type: bool,

@@ -83,6 +83,12 @@ static constexpr size_t CMD_STEER_FR_WHEEL = 5;
 static constexpr size_t CMD_STEER_RL_WHEEL = 6;
 static constexpr size_t CMD_STEER_RR_WHEEL = 7;
 
+// Rows/columns of the 6x6 row-major odometry covariance (x, y, z, roll, pitch, yaw)
+static constexpr size_t COV_DIMENSIONS = 6;
+static constexpr size_t COV_X = 0;
+static constexpr size_t COV_Y = 1;
+static constexpr size_t COV_YAW = 5;
+
 static constexpr size_t NR_STATE_ITFS = 8;
 static constexpr size_t NR_CMD_ITFS = 8;
 static constexpr size_t NR_REF_ITFS = 3;

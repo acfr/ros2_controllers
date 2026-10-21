@@ -151,6 +151,23 @@ namespace swerve_controller
     void set_wheel_params(double wheel_radius, double wheel_base, double wheel_track, double offset);
 
     /**
+     * \brief Sets the parameters used to estimate the twist covariance from the wheel fit
+     * \param floor         Minimum variance for [vx, vy, omega], always added to the estimate
+     * \param residual_gain Scale applied to the least-squares residual variance
+     * \param max_variance  Upper bound on each diagonal variance
+     */
+    void set_covariance_params(const Eigen::Vector3d & floor, double residual_gain, double max_variance);
+
+    /**
+     * \brief twist covariance getter
+     * \return covariance of [vx, vy, omega] from the last update
+     */
+    const Eigen::Matrix3d & get_twist_covariance() const
+    {
+      return twist_covariance_;
+    }
+
+    /**
      *  \brief Reset poses, heading, and accumulators
      */
     void reset_odometry();
@@ -175,6 +192,12 @@ namespace swerve_controller
     double wheel_radius_;
     double drive_to_steer_offset_; // [m]
     double steering_track_;        // [m]
+
+    /// Twist covariance estimation
+    Eigen::Matrix3d twist_covariance_; // [vx, vy, omega]
+    Eigen::Vector3d covariance_floor_;
+    double residual_gain_;
+    double max_variance_;
   };
 } // namespace swerve_controller
 #endif // SWERVE_CONTROLLER__ODOMETRY_HPP_

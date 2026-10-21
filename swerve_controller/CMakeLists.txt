@@ -86,6 +86,11 @@ if(BUILD_TESTING)
     swerve_controller
   )
   
+  ament_add_gmock(test_odometry test/test_odometry.cpp)
+  target_link_libraries(test_odometry
+    swerve_controller
+  )
+
   ament_add_gmock(test_load_swerve_controller test/test_load_swerve_controller.cpp)
   target_link_libraries(test_load_swerve_controller
     controller_manager::controller_manager

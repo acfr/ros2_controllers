@@ -220,15 +220,20 @@ controller_interface::CallbackReturn SwerveController::on_configure(const rclcpp
 
   auto & pose_covariance = rt_odom_state_publisher_->msg_.pose.covariance;
   auto & twist_covariance = rt_odom_state_publisher_->msg_.twist.covariance;
-  constexpr size_t NUM_DIMENSIONS = 6;
-  for (size_t index = 0; index < 6; ++index)
+  for (size_t index = 0; index < COV_DIMENSIONS; ++index)
   {
     // 0, 7, 14, 21, 28, 35
-    const size_t diagonal_index = NUM_DIMENSIONS * index + index;
+    const size_t diagonal_index = COV_DIMENSIONS * index + index;
     pose_covariance[diagonal_index] = params_.pose_covariance_diagonal[index];
     twist_covariance[diagonal_index] = params_.twist_covariance_diagonal[index];
   }
   rt_odom_state_publisher_->unlock();
+
+  odometry_.set_covariance_params(
+    Eigen::Vector3d(
+      params_.twist_covariance_diagonal[COV_X], params_.twist_covariance_diagonal[COV_Y],
+      params_.twist_covariance_diagonal[COV_YAW]),
+    params_.twist_covariance.residual_gain, params_.twist_covariance.max_variance);
 
   try
   {
@@ -745,6 +750,21 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     rt_odom_state_publisher_->msg_.twist.twist.linear.x = odometry_.get_linear_x();
     rt_odom_state_publisher_->msg_.twist.twist.linear.y = odometry_.get_linear_y();
     rt_odom_state_publisher_->msg_.twist.twist.angular.z = odometry_.get_angular();
+    if (params_.twist_covariance.dynamic)
+    {
+      // Map [vx, vy, omega] onto the x, y and yaw rows/columns of the 6x6 row-major twist covariance
+      constexpr std::array<size_t, 3> twist_indices = {COV_X, COV_Y, COV_YAW};
+      const Eigen::Matrix3d & covariance = odometry_.get_twist_covariance();
+      for (size_t row = 0; row < twist_indices.size(); ++row)
+      {
+        for (size_t col = 0; col < twist_indices.size(); ++col)
+        {
+          rt_odom_state_publisher_->msg_.twist
+            .covariance[COV_DIMENSIONS * twist_indices[row] + twist_indices[col]] =
+            covariance(row, col);
+        }
+      }
+    }
     rt_odom_state_publisher_->unlockAndPublish();
   }
 
