@@ -663,6 +663,10 @@ controller_interface::return_type SwerveController::update_and_write_commands(
 
     bool joint_state_invalid = false;
 
+    // Drive speed scale shared by every module, set by whichever module is furthest from its
+    // commanded heading.
+    double alignment_scale = 1.0;
+
     for (std::size_t i = 0; i < num_modules; i++)
     {
       const double current_velocity =
@@ -698,7 +702,7 @@ controller_interface::return_type SwerveController::update_and_write_commands(
         select_best_state(forward_state, reverse_state, current_velocity, current_steering);
 
       // fold in the whole-robot-rotation offset term (mirrored left-to-right). This one is
-      // applied upstream of the cosine slip scaling below so it gets scaled with the rest of
+      // applied upstream of the alignment scaling below so it gets scaled with the rest of
       // the drive speed rather than tacked on unscaled.
       const double drive_velocity = best.drive_velocity - side * angular_offset_correction;
 
@@ -707,12 +711,13 @@ controller_interface::return_type SwerveController::update_and_write_commands(
       const double steering_error =
         difference_between_angles(current_steering, best.steering_angle);
 
-      // Cosine slip compensation: only drive the wheel at its full commanded speed once its
-      // heading has caught up. While the module is still turning towards its target, scaling
-      // the drive speed by cos(steering_error) keeps the wheel rolling along its actual
-      // heading instead of scrubbing sideways against the ground, and relaxes back to the
-      // full commanded speed as the error closes. Also converts m/s -> rad/s.
-      double drive_command = std::cos(steering_error) * drive_velocity / wheel_params_.radius;
+      // Alignment slip compensation: max(0, cos(steering_error))^4 for this module. 
+      const double module_scale =
+        std::pow(std::max(0.0, std::cos(steering_error)), STEERING_ALIGNMENT_EXPONENT);
+      alignment_scale = std::min(alignment_scale, module_scale);
+
+      // m/s -> rad/s, alignment scale applied once all modules are known
+      double drive_command = drive_velocity / wheel_params_.radius;
 
       double steering_command =
         params_.wrap_steering_commands ? best.steering_angle : current_steering + steering_error;
@@ -730,6 +735,10 @@ controller_interface::return_type SwerveController::update_and_write_commands(
     }
     else
     {
+      for (double & drive_command : drive_commands)
+      {
+        drive_command *= alignment_scale;
+      }
       find_icrs(steer_commands);
       update_command_interfaces(drive_commands, steer_commands);
     }

@@ -89,6 +89,9 @@ static constexpr size_t COV_X = 0;
 static constexpr size_t COV_Y = 1;
 static constexpr size_t COV_YAW = 5;
 
+// Drive speed is scaled by max(0, cos(steering_error))^STEERING_ALIGNMENT_EXPONENT
+static constexpr double STEERING_ALIGNMENT_EXPONENT = 4.0;
+
 static constexpr size_t NR_STATE_ITFS = 8;
 static constexpr size_t NR_CMD_ITFS = 8;
 static constexpr size_t NR_REF_ITFS = 3;
